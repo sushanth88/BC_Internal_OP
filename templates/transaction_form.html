@@ -1,0 +1,109 @@
+{% extends 'layout.html' %}
+{% block content %}
+  <h2>{{ action }} Transaction</h2>
+  <form method="post">
+    {{ form.hidden_tag() }}
+    {% if action=='Edit' %}
+      <p>Created by: {{ form._obj.user.username if form._obj and form._obj.user else 'Unknown' }}</p>
+      <p>Last edited by: {{ form._obj.last_edited_user.username if form._obj and form._obj.last_edited_user else '—' }}</p>
+      <hr />
+    {% endif %}
+    <table>
+      <tr><td>{{ form.date.label }}</td><td>{{ form.date() }}</td></tr>
+      <tr><td>{{ form.number_of_orders.label }}</td><td>{{ form.number_of_orders() }}</td></tr>
+  <tr><td>{{ form.total_net_sale.label }}</td><td>{{ form.total_net_sale() }}</td></tr>
+  <tr><td>{{ form.voids_cash_sale.label }}</td><td>{{ form.voids_cash_sale(readonly=true, class_='computed') }}</td></tr>
+      <tr><td>{{ form.dining_cash_and_tips.label }}</td><td>{{ form.dining_cash_and_tips() }}</td></tr>
+      <tr><td>{{ form.dine_in_tips.label }}</td><td>{{ form.dine_in_tips() }}</td></tr>
+      <tr><td>{{ form.party_orders_cash.label }}</td><td>{{ form.party_orders_cash() }}</td></tr>
+      <tr><td>{{ form.biryani_po.label }}</td><td>{{ form.biryani_po() }}</td></tr>
+      <tr><td>{{ form.event_hall.label }}</td><td>{{ form.event_hall() }}</td></tr>
+  <tr><td>{{ form.paid_to.label }}</td><td>{{ form.paid_to() }}</td></tr>
+  <tr><td>{{ form.total_cash.label }}</td><td>{{ form.total_cash(readonly=true, class_='computed') }}</td></tr>
+      <tr><td>{{ form.after_discount_cash.label }}</td><td>{{ form.after_discount_cash() }}</td></tr>
+      <tr><td>{{ form.net_card_tips.label }}</td><td>{{ form.net_card_tips() }}</td></tr>
+      <tr><td>{{ form.doordash.label }}</td><td>{{ form.doordash() }}</td></tr>
+      <tr><td>{{ form.uber_eats.label }}</td><td>{{ form.uber_eats() }}</td></tr>
+      <tr><td>{{ form.grubhub.label }}</td><td>{{ form.grubhub() }}</td></tr>
+      <tr><td>{{ form.cancelled_orders.label }}</td><td>{{ form.cancelled_orders() }}</td></tr>
+  <tr><td>{{ form.gross_revenue.label }}</td><td>{{ form.gross_revenue(readonly=true, class_='computed') }}</td></tr>
+  <tr><td>{{ form.staff_commission.label }}</td><td>{{ form.staff_commission(readonly=true, class_='computed') }}</td></tr>
+  {% if current_user.is_admin %}
+    <tr><td>{{ form.toast_fees.label }}</td><td>{{ form.toast_fees() }}</td></tr>
+    <tr><td>{{ form.doordash_fees.label }}</td><td>{{ form.doordash_fees() }}</td></tr>
+    <tr><td>{{ form.uber_eats_fees.label }}</td><td>{{ form.uber_eats_fees() }}</td></tr>
+    <tr><td>{{ form.grubhub_fees.label }}</td><td>{{ form.grubhub_fees() }}</td></tr>
+  <tr><td>{{ form.net_revenue.label }}</td><td>{{ form.net_revenue(readonly=true, class_='computed') }}</td></tr>
+    <tr><td>{{ form.cash_verified_by_owner.label }}</td><td>{{ form.cash_verified_by_owner() }}</td></tr>
+  {% endif %}
+      <tr><td>{{ form.notes.label }}</td><td>{{ form.notes(rows=3, cols=40) }}</td></tr>
+    </table>
+    <div>{{ form.submit() }}</div>
+  </form>
+  {% if current_user.is_admin and action=='Edit' %}
+    <form method="post" action="{{ url_for('delete_transaction', tx_id=request.view_args['tx_id']) }}" onsubmit="return confirm('Delete this transaction?');">
+      <button type="submit">Delete</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    // Compute derived fields on input changes
+    (function(){
+      function parse(v){
+        var n = parseFloat(v);
+        return isNaN(n)?0.0:n;
+      }
+
+      function compute(){
+        // Total Cash = sum(voids_cash_sale + dining_cash_and_tips + dine_in_tips + party_orders_cash + biryani_po + event_hall) - paid_to
+        var voids = parse(document.querySelector('[name="voids_cash_sale"]').value);
+        var dineCash = parse(document.querySelector('[name="dining_cash_and_tips"]').value);
+        var dineTips = parse(document.querySelector('[name="dine_in_tips"]').value);
+        var party = parse(document.querySelector('[name="party_orders_cash"]').value);
+        var biryani = parse(document.querySelector('[name="biryani_po"]').value);
+        var eventHall = parse(document.querySelector('[name="event_hall"]').value);
+        var paidTo = parse(document.querySelector('[name="paid_to"]').value);
+        var totalCash = voids + dineCash + dineTips + party + biryani + eventHall - paidTo;
+        document.querySelector('[name="total_cash"]').value = totalCash.toFixed(2);
+
+        // Gross Revenue = Total Cash + sum(after_discount_cash + net_card_tips + doordash + uber_eats + grubhub) - cancelled_orders
+        var afterDiscount = parse(document.querySelector('[name="after_discount_cash"]').value);
+        var netCard = parse(document.querySelector('[name="net_card_tips"]').value);
+        var doordash = parse(document.querySelector('[name="doordash"]').value);
+        var uber = parse(document.querySelector('[name="uber_eats"]').value);
+        var grub = parse(document.querySelector('[name="grubhub"]').value);
+        var cancelled = parse(document.querySelector('[name="cancelled_orders"]').value);
+        var gross = totalCash + (afterDiscount + netCard + doordash + uber + grub) - cancelled;
+        document.querySelector('[name="gross_revenue"]').value = gross.toFixed(2);
+
+        // Staff Commission = party_orders_cash * 0.10 (computed)
+        var partyVal = parse(document.querySelector('[name="party_orders_cash"]').value);
+        var staffComm = partyVal * 0.10;
+        var staffEl = document.querySelector('[name="staff_commission"]');
+        if(staffEl) staffEl.value = staffComm.toFixed(2);
+
+        // Net Revenue = Gross Revenue - sum(toast_fees + doordash_fees + uber_eats_fees + grubhub_fees)
+        var toastFees = parse((document.querySelector('[name="toast_fees"]') || {value:0}).value);
+        var doordashFees = parse((document.querySelector('[name="doordash_fees"]') || {value:0}).value);
+        var uberFees = parse((document.querySelector('[name="uber_eats_fees"]') || {value:0}).value);
+        var grubFees = parse((document.querySelector('[name="grubhub_fees"]') || {value:0}).value);
+        var net = gross - (toastFees + doordashFees + uberFees + grubFees);
+        var netEl = document.querySelector('[name="net_revenue"]');
+        if(netEl) netEl.value = net.toFixed(2);
+      }
+
+      // attach listeners to inputs that affect calculations
+  var fields = ['voids_cash_sale','dining_cash_and_tips','dine_in_tips','party_orders_cash','biryani_po','event_hall','paid_to','after_discount_cash','net_card_tips','doordash','uber_eats','grubhub','cancelled_orders','toast_fees','doordash_fees','uber_eats_fees','grubhub_fees','party_orders_cash'];
+      fields.forEach(function(name){
+        var el = document.querySelector('[name="'+name+'"]');
+        if(el){ el.addEventListener('input', compute); el.addEventListener('change', compute); }
+      });
+
+      document.addEventListener('DOMContentLoaded', compute);
+      // run once immediately
+      setTimeout(compute, 50);
+    })();
+  </script>
+{% endblock %}

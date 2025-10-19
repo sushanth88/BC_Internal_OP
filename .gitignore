@@ -1,0 +1,16 @@
+*.sqlite
+data.sqlite
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.log
+/tmp/
+.pytest_cache/
+/.vscode/
+/.idea/
+env/
+node_modules/
+coverage/
