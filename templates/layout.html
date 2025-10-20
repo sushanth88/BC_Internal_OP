@@ -49,8 +49,8 @@
     {% set is_login = (request.endpoint == 'login') %}
     {% if not is_login %}
     <header>
-      <div class="brand-row" style="justify-content: space-between;">
-        <div class="brand-left" style="display:flex; align-items:center; gap:12px;">
+      <div class="brand-row">
+        <div class="brand-left">
           <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="site-logo" />
           <h1 class="site-title">Biryani City Portal</h1>
         </div>

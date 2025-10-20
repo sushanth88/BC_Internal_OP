@@ -49,8 +49,9 @@ header h1 { margin: 0; }
 h1, h2, h3, h4, h5, h6 { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
 header .site-title { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
 /* Brand row: logo + title inline */
-.brand-row { display:flex; align-items:center; gap: 12px; }
+.brand-row { position: relative; display:flex; align-items:center; justify-content:center; padding-right: 80px; gap: 12px; }
 .brand-row .site-title { margin: 0; font-size: 1.8rem; line-height: 1.2; }
+.brand-left { display:flex; align-items:center; gap:12px; }
 table { border-collapse: collapse; width: 100%; }
 table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 .container { max-width: 960px; margin: 24px auto; }
@@ -59,7 +60,7 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 .site-logo { display:block; width: 56px; height: auto; margin: 2px 0; }
 
 /* Theme toggle alignment */
-.theme-toggle { display:flex; gap:6px; align-items:center; }
+.theme-toggle { display:flex; gap:6px; align-items:center; position:absolute; right:0; top:50%; transform: translateY(-50%); }
 .theme-toggle .theme-btn {
 	border: 1px solid var(--border);
 	background: transparent;
