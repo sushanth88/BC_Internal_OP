@@ -6,6 +6,7 @@
 	--link: #0366d6;
 	--border: #e5e7eb;
 	color-scheme: light dark;
+	--font-sans: 'SF Pro Display', 'SF Pro Text', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
 @media (prefers-color-scheme: dark) {
@@ -36,7 +37,8 @@
 	color-scheme: dark;
 }
 
-body { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; background: var(--bg) !important; color: var(--text) !important; }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; background: var(--bg) !important; color: var(--text) !important; }
+.nav, .nav a, table, th, td, input, select, textarea, button { font-family: var(--font-sans); }
 .nav a { margin: 0 8px; text-decoration: none; color: var(--text) }
 .nav a:visited { color: var(--text); }
 .nav a:hover { color: var(--link); }
@@ -44,8 +46,8 @@ body { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue'
 .header-summary { font-size: 0.95rem; color: var(--muted); margin-left: 12px }
 header h1 { margin: 0; }
 /* Ensure headings follow theme text color */
-h1, h2, h3, h4, h5, h6 { color: var(--text); }
-header .site-title { color: var(--text); }
+h1, h2, h3, h4, h5, h6 { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
+header .site-title { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
 /* Brand row: logo + title inline */
 .brand-row { display:flex; align-items:center; gap: 12px; }
 .brand-row .site-title { margin: 0; font-size: 1.8rem; line-height: 1.2; }
