@@ -1,0 +1,38 @@
+{% extends 'layout.html' %}
+{% block content %}
+  <h2>Bulk Upload Transactions (Admin)</h2>
+  <p>Upload a CSV or Excel (.xlsx) file with a header row. Required column: <strong>Date</strong>. Others are optional and will default to 0. Supported columns map to the transaction form fields.</p>
+  <form method="post" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div>
+      {{ form.file.label }}<br>
+      {{ form.file() }}
+    </div>
+    <div>
+      <label>{{ form.overwrite() }} Overwrite existing dates (upsert)</label>
+    </div>
+    <div>
+      {{ form.submit() }}
+    </div>
+  </form>
+
+  {% if summary %}
+    <hr>
+    <h3>Import Summary</h3>
+    <ul>
+      <li>Created: {{ summary.created }}</li>
+      <li>Updated: {{ summary.updated }}</li>
+      <li>Skipped: {{ summary.skipped }}</li>
+    </ul>
+    {% if summary.errors and summary.errors|length %}
+      <details>
+        <summary>Errors ({{ summary.errors|length }})</summary>
+        <ul>
+          {% for e in summary.errors %}
+            <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  {% endif %}
+{% endblock %}
