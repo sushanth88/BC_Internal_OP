@@ -5,7 +5,7 @@ from flask import Flask, render_template, redirect, url_for, flash, request, abo
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from flask_wtf import FlaskForm, CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import (create_engine, Column, Integer, String, Date, Float, Text, Boolean, DateTime, ForeignKey, UniqueConstraint)
+from sqlalchemy import (create_engine, Column, Integer, String, Date, Float, Text, Boolean, DateTime, ForeignKey, UniqueConstraint, func)
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, scoped_session
 from sqlalchemy import text
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, FloatField, IntegerField, DateField, TextAreaField
@@ -304,12 +304,106 @@ def index():
     db = SessionLocal()
     if current_user.is_admin:
         txs = db.query(Transaction).order_by(Transaction.date.desc()).limit(100).all()
+        # Admin-only: build aggregates for charts
+        try:
+            from datetime import timedelta
+            today_d = date.today()
+            # DAILY: last 14 days (inclusive)
+            d_start = today_d - timedelta(days=13)
+            rows_daily = (
+                db.query(Transaction.date, func.sum(Transaction.net_revenue))
+                .filter(Transaction.date >= d_start)
+                .group_by(Transaction.date)
+                .order_by(Transaction.date)
+                .all()
+            )
+            daily_map = {r[0]: float(r[1] or 0.0) for r in rows_daily}
+            daily_labels = []
+            daily_values = []
+            for i in range(14):
+                d = d_start + timedelta(days=i)
+                daily_labels.append(d.strftime('%m-%d'))
+                daily_values.append(round(daily_map.get(d, 0.0), 2))
+
+            # WEEKLY: last 8 weeks grouped by week start (Monday)
+            w_start = today_d - timedelta(weeks=7)
+            rows_week = (
+                db.query(Transaction.date, Transaction.net_revenue)
+                .filter(Transaction.date >= w_start - timedelta(days=6))
+                .all()
+            )
+            week_map = {}
+            for d, val in rows_week:
+                wk_start = d - timedelta(days=d.weekday())
+                week_map[wk_start] = week_map.get(wk_start, 0.0) + float(val or 0.0)
+            # build ordered last 8 week buckets
+            weekly_labels = []
+            weekly_values = []
+            for i in range(8):
+                wk = (w_start - timedelta(days=w_start.weekday())) + timedelta(weeks=i)
+                weekly_labels.append(wk.strftime('Wk %W\n%b %d'))
+                weekly_values.append(round(week_map.get(wk, 0.0), 2))
+
+            # MONTHLY: last 12 months grouped by YYYY-MM
+            m_start = (today_d.replace(day=1))
+            # compute 12 months back
+            from calendar import monthrange
+            months = []
+            y, m = m_start.year, m_start.month
+            for _ in range(12):
+                months.append((y, m))
+                m -= 1
+                if m == 0:
+                    m = 12
+                    y -= 1
+            months = list(reversed(months))
+            # query from first month start
+            first_year, first_month = months[0]
+            from_month_start = date(first_year, first_month, 1)
+            rows_month = (
+                db.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.net_revenue))
+                .filter(Transaction.date >= from_month_start)
+                .group_by(func.strftime('%Y-%m', Transaction.date))
+                .order_by(func.strftime('%Y-%m', Transaction.date))
+                .all()
+            )
+            month_map = {k: float(v or 0.0) for (k, v) in rows_month}
+            monthly_labels = []
+            monthly_values = []
+            for (yy, mm) in months:
+                key = f"{yy:04d}-{mm:02d}"
+                monthly_labels.append(f"{yy}-{mm:02d}")
+                monthly_values.append(round(month_map.get(key, 0.0), 2))
+        except Exception:
+            # On any failure, gracefully degrade to empty series
+            daily_labels, daily_values = [], []
+            weekly_labels, weekly_values = [], []
+            monthly_labels, monthly_values = [], []
+        charts = {
+            'daily': {'labels': daily_labels, 'values': daily_values},
+            'weekly': {'labels': weekly_labels, 'values': weekly_values},
+            'monthly': {'labels': monthly_labels, 'values': monthly_values},
+        }
     else:
         # regular users see only today's transaction (global)
         today = date.today()
         txs = db.query(Transaction).filter(Transaction.date == today).all()
+        charts = None
     # pass today's date so template can decide whether regular users may edit
-    return render_template('index.html', transactions=txs, today=date.today())
+    return render_template('index.html', transactions=txs, today=date.today(), charts=charts)
+
+
+@app.route('/sales')
+@login_required
+def sales():
+    db = SessionLocal()
+    if current_user.is_admin:
+        txs = db.query(Transaction).order_by(Transaction.date.desc()).limit(100).all()
+    else:
+        # regular users see only today's transaction (global)
+        today_d = date.today()
+        txs = db.query(Transaction).filter(Transaction.date == today_d).all()
+    return render_template('sales.html', transactions=txs, today=date.today())
 
 
 @app.route('/login', methods=['GET', 'POST'])

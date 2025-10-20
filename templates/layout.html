@@ -5,14 +5,58 @@
   <title>Biryani City Portal</title>
     {# CSRF token for JS fetches; Flask-WTF provides csrf_token() when CSRFProtect is enabled #}
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    <meta name="color-scheme" content="light dark">
+    <script>
+      // Apply stored theme ASAP and preload Water.css variants; enable only the active one
+      (function(){
+        try {
+          var mode = localStorage.getItem('theme-mode');
+          if (mode && mode !== 'auto') {
+            document.documentElement.setAttribute('data-theme', mode);
+          }
+          var base = 'https://cdn.jsdelivr.net/npm/water.css@2/out/';
+          function ensureLink(id, href){
+            var el = document.getElementById(id);
+            if (!el){
+              el = document.createElement('link');
+              el.id = id; el.rel = 'stylesheet'; el.href = href; el.disabled = true;
+              document.write(el.outerHTML);
+            }
+          }
+          ensureLink('watercss-auto', base + 'water.css');
+          ensureLink('watercss-light', base + 'light.css');
+          ensureLink('watercss-dark', base + 'dark.css');
+          function setEnabled(m){
+            var a = document.getElementById('watercss-auto');
+            var l = document.getElementById('watercss-light');
+            var d = document.getElementById('watercss-dark');
+            if (!a || !l || !d) return;
+            a.disabled = !(m === null || m === 'auto');
+            l.disabled = !(m === 'light');
+            d.disabled = !(m === 'dark');
+          }
+          setEnabled(mode || 'auto');
+        } catch(e) {}
+      })();
+    </script>
+    <!-- Fallback if JS is blocked -->
+    <noscript>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
+    </noscript>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body>
     <header>
-      <div class="brand-row">
-        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="site-logo" />
-        <h1 class="site-title">Biryani City Portal</h1>
+      <div class="brand-row" style="justify-content: space-between;">
+        <div class="brand-left" style="display:flex; align-items:center; gap:12px;">
+          <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="site-logo" />
+          <h1 class="site-title">Biryani City Portal</h1>
+        </div>
+        <div class="theme-toggle" role="group" aria-label="Theme">
+          <button type="button" class="theme-btn" data-mode="auto" aria-pressed="false" title="Auto (system)">🖥️</button>
+          <button type="button" class="theme-btn" data-mode="light" aria-pressed="false" title="Light">☀️</button>
+          <button type="button" class="theme-btn" data-mode="dark" aria-pressed="false" title="Dark">🌙</button>
+        </div>
       </div>
       {% include '_nav.html' %}
       {% if current_user.is_authenticated and not current_user.is_admin %}
@@ -46,6 +90,89 @@
       {% endwith %}
       {% block content %}{% endblock %}
     </main>
+    <script>
+      (function(){
+        // Theme management: auto (system), light, dark
+        var root = document.documentElement;
+        var metaCS = document.querySelector('meta[name="color-scheme"]');
+        function resolvedScheme(mode){
+          if (mode === 'dark') return 'dark';
+          if (mode === 'light') return 'light';
+          try { return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; } catch(_) { return 'light'; }
+        }
+        function setWaterEnabled(mode){
+          // Toggle disabled state on preloaded stylesheets to avoid href swaps and flashing
+          return new Promise(function(resolve){
+            try {
+              var a = document.getElementById('watercss-auto');
+              var l = document.getElementById('watercss-light');
+              var d = document.getElementById('watercss-dark');
+              if (a && l && d){
+                a.disabled = !(mode === 'auto');
+                l.disabled = !(mode === 'light');
+                d.disabled = !(mode === 'dark');
+              }
+            } catch(_) {}
+            // microtask to allow style recalc
+            setTimeout(resolve, 0);
+          });
+        }
+
+        function applyTheme(mode){
+          if (mode === 'dark'){
+            root.setAttribute('data-theme', 'dark');
+            if (metaCS) metaCS.setAttribute('content','dark light');
+          } else if (mode === 'light'){
+            root.setAttribute('data-theme', 'light');
+            if (metaCS) metaCS.setAttribute('content','light dark');
+          } else {
+            root.removeAttribute('data-theme'); // defer to system
+            if (metaCS) metaCS.setAttribute('content','light dark');
+          }
+          // Hint to UA for form controls & scrollbars
+          var scheme = resolvedScheme(mode);
+          root.style.colorScheme = scheme;
+          root.setAttribute('data-theme-state', scheme + '/' + mode);
+          // Enable correct Water.css and after styles settle, notify listeners
+          var notify = function(){
+            var evt = new CustomEvent('themechange', { detail: { mode: mode, scheme: scheme }, bubbles: true, composed: true });
+            window.dispatchEvent(evt);
+            document.dispatchEvent(evt);
+          };
+          // Fire once immediately (fallback), and again after enabling stylesheet
+          try { notify(); } catch(_){ }
+          setWaterEnabled(mode).then(function(){ notify(); });
+          // Force minimal reflow to ensure immediate repaint on some UAs
+          try { void document.body.offsetHeight; } catch(_){ }
+        }
+        try {
+          var stored = localStorage.getItem('theme-mode');
+          var initial = stored ? stored : 'auto';
+          applyTheme(initial);
+
+          // Wire icon buttons
+          function updateToggleUI(mode){
+            var btns = document.querySelectorAll('.theme-btn');
+            btns.forEach(function(b){
+              var active = b.getAttribute('data-mode') === mode;
+              b.setAttribute('aria-pressed', active ? 'true' : 'false');
+              if (active) b.classList.add('active'); else b.classList.remove('active');
+            });
+          }
+          updateToggleUI(initial);
+          document.addEventListener('click', function(ev){
+            var t = ev.target;
+            if (t && t.classList && t.classList.contains('theme-btn')){
+              var val = t.getAttribute('data-mode');
+              if (val === 'auto') localStorage.removeItem('theme-mode');
+              else localStorage.setItem('theme-mode', val);
+              applyTheme(val);
+              updateToggleUI(val);
+            }
+          });
+        } catch(e) { /* no-op */ }
+      })();
+    </script>
     <script>
       document.addEventListener('click', function(ev) {
         var el = ev.target;

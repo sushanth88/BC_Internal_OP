@@ -2,13 +2,8 @@
   <div>
     <nav class="nav">
       <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Home</a>
+      <a href="{{ url_for('sales') }}" class="{% if request.path == url_for('sales') %}active{% endif %}">Sales</a>
       {% if current_user.is_authenticated %}
-        {# Show Add Transaction only if there's no today's transaction for this user #}
-        {% if not today_tx_exists %}
-          <a href="{{ url_for('new_transaction') }}" class="{% if request.path == url_for('new_transaction') %}active{% endif %}">Add Transaction</a>
-        {% else %}
-          <a href="{{ url_for('edit_transaction', tx_id=today_tx_id) }}">Edit Today's</a>
-        {% endif %}
         {% if current_user.is_admin %}
           <a href="{{ url_for('audit_logs') }}" class="{% if request.path.startswith(url_for('audit_logs')) %}active{% endif %}">Audit</a>
           {# Import feature removed #}
