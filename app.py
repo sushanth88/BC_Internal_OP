@@ -9,6 +9,7 @@ from sqlalchemy import (create_engine, Column, Integer, String, Date, Float, Tex
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, scoped_session
 from sqlalchemy import text
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, FloatField, IntegerField, DateField, TextAreaField
+from flask_wtf.file import FileField as UploadFileField, FileAllowed, FileRequired
 from wtforms.validators import DataRequired, Length
 from sqlalchemy.exc import IntegrityError
 import tempfile
@@ -177,6 +178,15 @@ class TransactionForm(FlaskForm):
     cash_verified_by_owner = StringField('Cash Verified By Owner', default='')
     notes = TextAreaField('Notes', default='')
     submit = SubmitField('Save')
+
+
+class UploadTransactionsForm(FlaskForm):
+    file = UploadFileField('Upload CSV or Excel (.csv, .xlsx)', validators=[
+        FileRequired(),
+        FileAllowed(['csv', 'xlsx'], 'CSV or Excel files only')
+    ])
+    overwrite = BooleanField('Overwrite existing dates (upsert)')
+    submit = SubmitField('Import')
 
 
 def init_db():
@@ -476,6 +486,82 @@ def can_edit_tx(tx: Transaction):
     return tx.date == date.today()
 
 
+def _parse_date(val: str):
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    # try multiple formats
+    fmts = ['%Y-%m-%d', '%m/%d/%Y', '%d-%m-%Y']
+    for f in fmts:
+        try:
+            return datetime.strptime(s, f).date()
+        except Exception:
+            pass
+    # openpyxl may deliver datetime.date directly
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
+    raise ValueError(f'Unrecognized date: {val!r}')
+
+
+def _parse_float(val):
+    try:
+        if val is None:
+            return 0.0
+        if isinstance(val, (int, float)):
+            return float(val)
+        s = str(val).strip().replace('\u00a0', ' ')
+        if s == '':
+            return 0.0
+        # remove currency and commas
+        for ch in ['$', ',', '€', '£']:
+            s = s.replace(ch, '')
+        return float(s)
+    except Exception:
+        return 0.0
+
+
+def _row_to_tx_fields(row: dict):
+    # normalize keys
+    norm = {}
+    for k, v in row.items():
+        key = str(k).strip().lower().replace(' ', '_').replace('-', '_')
+        norm[key] = v
+    # expected mappings
+    get = lambda *names: next((norm[n] for n in names if n in norm), None)
+    fields = {}
+    d = get('date')
+    fields['date'] = _parse_date(d) if d is not None else None
+    # numeric fields
+    def f(*names):
+        return _parse_float(get(*names))
+    fields.update({
+        'number_of_orders': int(f('number_of_orders') or 0),
+        'total_net_sale': f('total_net_sale', 'total_voids', 'total'),
+        'net_card_tips': f('net_card_tips'),
+        'after_discount_cash': f('after_discount_cash', 'toast_card_sale'),
+        'dining_cash_and_tips': f('dining_cash_and_tips', 'dine_in_cash'),
+        'dine_in_tips': f('dine_in_tips'),
+        'party_orders_cash': f('party_orders_cash', 'catering_orders'),
+        'biryani_po': f('biryani_po', 'biryani_trays'),
+        'event_hall': f('event_hall'),
+        'paid_to': f('paid_to'),
+        'grubhub': f('grubhub'),
+        'doordash': f('doordash'),
+        'uber_eats': f('uber_eats'),
+        'cancelled_orders': f('cancelled_orders'),
+        'toast_fees': f('toast_fees'),
+        'doordash_fees': f('doordash_fees'),
+        'uber_eats_fees': f('uber_eats_fees'),
+        'grubhub_fees': f('grubhub_fees'),
+        'notes': (get('notes') or '').strip() if isinstance(get('notes'), str) else (get('notes') or ''),
+    })
+    return fields
+
+
 @app.route('/transactions/new', methods=['GET', 'POST'])
 @login_required
 def new_transaction():
@@ -693,6 +779,169 @@ def delete_transaction(tx_id):
     db.commit()
     flash('Transaction deleted', 'info')
     return redirect(url_for('index'))
+
+
+@app.route('/admin/upload', methods=['GET', 'POST'])
+@login_required
+def admin_upload():
+    if not current_user.is_admin:
+        abort(403)
+    form = UploadTransactionsForm()
+    summary = None
+    if form.validate_on_submit():
+        file = form.file.data
+        overwrite = bool(form.overwrite.data)
+        filename = file.filename or ''
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        rows = []
+        errors = []
+        try:
+            if ext == 'csv':
+                import io, csv as _csv
+                content = file.read()
+                # try utf-8, fallback latin-1
+                try:
+                    text = content.decode('utf-8-sig')
+                except Exception:
+                    text = content.decode('latin-1')
+                reader = _csv.DictReader(io.StringIO(text))
+                rows = list(reader)
+            elif ext == 'xlsx':
+                try:
+                    import openpyxl
+                except Exception:
+                    flash('Excel support requires openpyxl. Please install it or upload CSV.', 'danger')
+                    return render_template('admin_upload.html', form=form)
+                wb = openpyxl.load_workbook(file, data_only=True)
+                ws = wb.active
+                headers = [str(c.value).strip() if c.value is not None else '' for c in next(ws.iter_rows(min_row=1, max_row=1))]
+                for r in ws.iter_rows(min_row=2, values_only=True):
+                    rows.append({headers[i]: r[i] for i in range(len(headers))})
+            else:
+                flash('Unsupported file type. Upload a .csv or .xlsx file.', 'danger')
+                return render_template('admin_upload.html', form=form)
+        except Exception as e:
+            flash(f'Failed to read file: {e}', 'danger')
+            return render_template('admin_upload.html', form=form)
+
+        db = SessionLocal()
+        created = 0
+        updated = 0
+        skipped = 0
+        seen_dates = set()
+        for idx, row in enumerate(rows, start=2):
+            try:
+                data = _row_to_tx_fields(row)
+                d = data.get('date')
+                if not d:
+                    skipped += 1
+                    errors.append(f'Row {idx}: missing/invalid date')
+                    continue
+                if d in seen_dates:
+                    skipped += 1
+                    errors.append(f'Row {idx}: duplicate date in file {d}')
+                    continue
+                seen_dates.add(d)
+                # server-side computations
+                total_net_sale_val = float(data['total_net_sale'] or 0.0)
+                voids = float(total_net_sale_val * 0.95)
+                dineCash = float(data['dining_cash_and_tips'] or 0.0)
+                dineTips = float(data['dine_in_tips'] or 0.0)
+                party = float(data['party_orders_cash'] or 0.0)
+                biryani = float(data['biryani_po'] or 0.0)
+                eventHall = float(data['event_hall'] or 0.0)
+                paid_to_val = float(data['paid_to'] or 0.0)
+                total_cash_val = voids + dineCash + dineTips + party + biryani + eventHall - paid_to_val
+                afterDiscount = float(data['after_discount_cash'] or 0.0)
+                netCard = float(data['net_card_tips'] or 0.0)
+                doordash_val = float(data['doordash'] or 0.0)
+                uber = float(data['uber_eats'] or 0.0)
+                grub = float(data['grubhub'] or 0.0)
+                cancelled = float(data['cancelled_orders'] or 0.0)
+                gross_val = total_cash_val + (afterDiscount + netCard + doordash_val + uber + grub) - cancelled
+                toastFeesVal = float(data['toast_fees'] or 0.0)
+                doordashFeesVal = float(data['doordash_fees'] or 0.0)
+                uberFeesVal = float(data['uber_eats_fees'] or 0.0)
+                grubFeesVal = float(data['grubhub_fees'] or 0.0)
+                net_val = gross_val - (toastFeesVal + doordashFeesVal + uberFeesVal + grubFeesVal)
+                staff_commission_val = float((data['party_orders_cash'] or 0.0) * 0.10)
+
+                existing = db.query(Transaction).filter(Transaction.date == d).first()
+                if existing:
+                    if not overwrite:
+                        skipped += 1
+                        continue
+                    old_vals = {k: getattr(existing, k) for k in ['date','number_of_orders','total_net_sale','net_card_tips','voids_cash_sale','after_discount_cash','dining_cash_and_tips','dine_in_tips','party_orders_cash','biryani_po','event_hall','paid_to','total_cash','grubhub','doordash','uber_eats','cancelled_orders','gross_revenue','staff_commission','toast_fees','doordash_fees','uber_eats_fees','grubhub_fees','net_revenue','cash_verified_by_owner','notes']}
+                    for field in ['number_of_orders','total_net_sale','net_card_tips','after_discount_cash','dining_cash_and_tips','dine_in_tips','party_orders_cash','biryani_po','event_hall','paid_to','grubhub','doordash','uber_eats','cancelled_orders','notes']:
+                        setattr(existing, field, data.get(field))
+                    existing.voids_cash_sale = voids
+                    existing.total_cash = total_cash_val
+                    existing.gross_revenue = gross_val
+                    existing.staff_commission = staff_commission_val
+                    existing.toast_fees = toastFeesVal
+                    existing.doordash_fees = doordashFeesVal
+                    existing.uber_eats_fees = uberFeesVal
+                    existing.grubhub_fees = grubFeesVal
+                    existing.net_revenue = net_val
+                    existing.last_edited_by = current_user.id
+                    db.add(existing)
+                    db.commit()
+                    changes = []
+                    for k, v in old_vals.items():
+                        if getattr(existing, k) != v:
+                            changes.append(f'{k}: {v} -> {getattr(existing,k)}')
+                    log = AuditLog(actor_id=current_user.id, action='edit', tx_id=existing.id, details='[bulk upload] ' + ('; '.join(changes) or 'no changes'))
+                    db.add(log)
+                    db.commit()
+                    updated += 1
+                else:
+                    tx = Transaction(
+                        user_id=current_user.id,
+                        date=d,
+                        number_of_orders=data['number_of_orders'] or 0,
+                        total_net_sale=data['total_net_sale'] or 0.0,
+                        net_card_tips=data['net_card_tips'] or 0.0,
+                        voids_cash_sale=voids,
+                        after_discount_cash=data['after_discount_cash'] or 0.0,
+                        dining_cash_and_tips=data['dining_cash_and_tips'] or 0.0,
+                        dine_in_tips=data['dine_in_tips'] or 0.0,
+                        party_orders_cash=data['party_orders_cash'] or 0.0,
+                        biryani_po=data['biryani_po'] or 0.0,
+                        event_hall=data['event_hall'] or 0.0,
+                        paid_to=data['paid_to'] or 0.0,
+                        total_cash=total_cash_val,
+                        grubhub=data['grubhub'] or 0.0,
+                        doordash=data['doordash'] or 0.0,
+                        uber_eats=data['uber_eats'] or 0.0,
+                        cancelled_orders=data['cancelled_orders'] or 0.0,
+                        gross_revenue=gross_val,
+                        staff_commission=staff_commission_val,
+                        toast_fees=toastFeesVal,
+                        doordash_fees=doordashFeesVal,
+                        uber_eats_fees=uberFeesVal,
+                        grubhub_fees=grubFeesVal,
+                        net_revenue=net_val,
+                        cash_verified_by_owner='',
+                        notes=data['notes'] or '',
+                    )
+                    tx.last_edited_by = current_user.id
+                    db.add(tx)
+                    db.commit()
+                    # audit
+                    log = AuditLog(actor_id=current_user.id, action='create', tx_id=tx.id, details=f'[bulk upload] Created transaction for {tx.date}')
+                    db.add(log)
+                    db.commit()
+                    created += 1
+            except Exception as e:
+                errors.append(f'Row {idx}: {e}')
+                continue
+
+        summary = dict(created=created, updated=updated, skipped=skipped, errors=errors)
+        if errors:
+            flash(f'Import completed with {len(errors)} issues. Created: {created}, Updated: {updated}, Skipped: {skipped}', 'warning')
+        else:
+            flash(f'Import completed. Created: {created}, Updated: {updated}, Skipped: {skipped}', 'success')
+    return render_template('admin_upload.html', form=form, summary=summary)
 
 
 @app.route('/admin/audit-logs')
