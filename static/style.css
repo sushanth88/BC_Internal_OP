@@ -79,6 +79,9 @@ html, body, header, main, .charts, table, .nav a, .header-summary {
 
 /* Login page minimal layout: center content when header/nav are hidden */
 body[data-page="login"] main { max-width: 420px; margin: 56px auto; }
+body[data-page="login"] .login-brand { text-align: center; margin-bottom: 12px; }
+body[data-page="login"] .login-logo { width: 72px; height: auto; display: inline-block; margin-bottom: 6px; border-radius: 6px; }
+body[data-page="login"] .login-title { margin: 0 0 8px; font-size: 1.4rem; color: var(--text); }
 
 /* Nav with dropdown submenu */
 .nav { position: relative; display: inline-flex; gap: 4px; align-items: center; }

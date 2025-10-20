@@ -1,5 +1,9 @@
 {% extends 'layout.html' %}
 {% block content %}
+  <div class="login-brand">
+    <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="login-logo" />
+    <h1 class="login-title">Biryani City Portal</h1>
+  </div>
   <h2>Login</h2>
   <form method="post">
     {{ form.hidden_tag() }}
