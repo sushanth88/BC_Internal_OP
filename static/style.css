@@ -118,3 +118,7 @@ html, body, header, main, .charts, table, .nav a, .header-summary {
 
 /* caret style for parent */
 .nav .nav-item > a.parent::after { content: ''; }
+
+/* submenu utilities */
+.nav .nav-item .submenu.right { left: auto; right: 0; }
+.nav .nav-item .submenu.narrow { min-width: 140px; }

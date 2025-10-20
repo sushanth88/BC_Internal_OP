@@ -32,3 +32,18 @@
     {% endif %}
   </div>
 </div>
+
+{#
+  Submenu pattern (for future sections):
+  <div class="has-submenu nav-item">
+    <a href="#" class="parent" aria-haspopup="true" aria-expanded="false">Section ▾</a>
+    <div class="submenu right" role="menu" aria-label="Section submenu">
+      <a href="#" role="menuitem">Item 1</a>
+      <a href="#" role="menuitem">Item 2</a>
+    </div>
+  </div>
+  Notes:
+  - Use class "right" on .submenu to right-align under parent when needed.
+  - JS in layout.html handles click/touch toggle and keyboard (Enter/Space, Esc).
+  - Keep aria-expanded synced on the parent <a>.
+#}

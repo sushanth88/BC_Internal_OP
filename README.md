@@ -32,3 +32,10 @@ Usage notes
 Next steps
 - Add tests and more robust user management (registration, password reset).
 - Add CSV export and reporting.
+
+Navigation submenus
+- To add a hover submenu to any nav item, wrap the parent link in a `.nav-item.has-submenu` div and add a `.submenu` with links.
+- The submenu opens on hover/focus and on click/touch (JS toggles aria-expanded for accessibility).
+- Utilities:
+	- `.submenu.right` right-aligns the dropdown to the parent.
+	- `.submenu.narrow` reduces min-width to 140px.
