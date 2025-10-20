@@ -1,0 +1,10 @@
+{% extends 'layout.html' %}
+{% block content %}
+  <h2>Expenses</h2>
+  <p>Select a category:</p>
+  <ul>
+    <li><a href="{{ url_for('expenses_salaries') }}">Salaries</a></li>
+    <li><a href="{{ url_for('expenses_restaurant') }}">Restaurant</a></li>
+    <li><a href="{{ url_for('expenses_guest_house') }}">Guest House</a></li>
+  </ul>
+{% endblock %}

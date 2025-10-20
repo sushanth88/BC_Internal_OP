@@ -406,6 +406,31 @@ def sales():
     return render_template('sales.html', transactions=txs, today=date.today())
 
 
+# Expenses pages
+@app.route('/expenses')
+@login_required
+def expenses():
+    return render_template('expenses.html')
+
+
+@app.route('/expenses/salaries')
+@login_required
+def expenses_salaries():
+    return render_template('expenses_salaries.html')
+
+
+@app.route('/expenses/restaurant')
+@login_required
+def expenses_restaurant():
+    return render_template('expenses_restaurant.html')
+
+
+@app.route('/expenses/guest-house')
+@login_required
+def expenses_guest_house():
+    return render_template('expenses_guest_house.html')
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
