@@ -301,6 +301,10 @@ except Exception:
 @app.route('/')
 @login_required
 def index():
+    # Admin-only dashboard; regular users are redirected to Sales
+    if not current_user.is_admin:
+        flash('You do not have access to Dashboard.', 'warning')
+        return redirect(url_for('sales'))
     db = SessionLocal()
     if current_user.is_admin:
         txs = db.query(Transaction).order_by(Transaction.date.desc()).limit(100).all()
@@ -385,7 +389,7 @@ def index():
             'monthly': {'labels': monthly_labels, 'values': monthly_values},
         }
     else:
-        # regular users see only today's transaction (global)
+        # unreachable because non-admins are redirected above
         today = date.today()
         txs = db.query(Transaction).filter(Transaction.date == today).all()
         charts = None
@@ -410,24 +414,36 @@ def sales():
 @app.route('/expenses')
 @login_required
 def expenses():
+    if not current_user.is_admin:
+        flash('You do not have access to Expenses.', 'warning')
+        return redirect(url_for('sales'))
     return render_template('expenses.html')
 
 
 @app.route('/expenses/salaries')
 @login_required
 def expenses_salaries():
+    if not current_user.is_admin:
+        flash('You do not have access to Expenses.', 'warning')
+        return redirect(url_for('sales'))
     return render_template('expenses_salaries.html')
 
 
 @app.route('/expenses/restaurant')
 @login_required
 def expenses_restaurant():
+    if not current_user.is_admin:
+        flash('You do not have access to Expenses.', 'warning')
+        return redirect(url_for('sales'))
     return render_template('expenses_restaurant.html')
 
 
 @app.route('/expenses/guest-house')
 @login_required
 def expenses_guest_house():
+    if not current_user.is_admin:
+        flash('You do not have access to Expenses.', 'warning')
+        return redirect(url_for('sales'))
     return render_template('expenses_guest_house.html')
 
 

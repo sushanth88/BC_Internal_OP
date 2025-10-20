@@ -1,9 +1,11 @@
 <div class="topbar">
   <div>
     <nav class="nav">
-  <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
+  {% if current_user.is_authenticated and current_user.is_admin %}
+    <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
+  {% endif %}
       <a href="{{ url_for('sales') }}" class="{% if request.path == url_for('sales') %}active{% endif %}">Sales</a>
-      {% if current_user.is_authenticated %}
+      {% if current_user.is_authenticated and current_user.is_admin %}
         <div class="has-submenu nav-item">
           <a href="{{ url_for('expenses') }}"
              class="{% if request.path.startswith('/expenses') %}active{% endif %} parent"
