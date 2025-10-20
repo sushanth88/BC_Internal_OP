@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Internal Accounting</title>
+  <title>Biryani City Portal</title>
     {# CSRF token for JS fetches; Flask-WTF provides csrf_token() when CSRFProtect is enabled #}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
@@ -10,7 +10,10 @@
   </head>
   <body>
     <header>
-      <h1>Internal Accounting</h1>
+      <div class="brand-row">
+        <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="site-logo" />
+        <h1 class="site-title">Biryani City Portal</h1>
+      </div>
       {% include '_nav.html' %}
       {% if current_user.is_authenticated and not current_user.is_admin %}
         {# show quick summary for regular users whether today's transaction exists #}

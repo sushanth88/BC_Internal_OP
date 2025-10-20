@@ -11,6 +11,13 @@ from sqlalchemy import text
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, FloatField, IntegerField, DateField, TextAreaField
 from wtforms.validators import DataRequired, Length
 from sqlalchemy.exc import IntegrityError
+import tempfile
+import uuid
+import shutil
+import csv
+import tempfile
+import uuid
+import shutil
 
 BASE_DIR = os.path.dirname(__file__)
 DB_PATH = os.path.join(BASE_DIR, 'data.sqlite')
@@ -601,6 +608,288 @@ def cli_create_admin():
     db.add(admin)
     db.commit()
     print('Admin created')
+
+
+@app.route('/upload', methods=['GET', 'POST'])
+@login_required
+def upload_excel():
+    # Admin-only upload to import transactions from an Excel report
+    if not current_user.is_admin:
+        abort(403)
+    if request.method == 'POST':
+        f = request.files.get('file')
+        if not f:
+            flash('No file uploaded', 'warning')
+            return redirect(url_for('upload_excel'))
+        # save to temp dir
+        tmpdir = tempfile.mkdtemp(prefix='bc_upload_')
+        session_key = str(uuid.uuid4())
+        fname = os.path.join(tmpdir, session_key + '_' + (f.filename or 'upload.xlsx'))
+        f.save(fname)
+
+        # parse workbook using openpyxl at runtime; show friendly error if missing
+        try:
+            import openpyxl
+        except Exception:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            flash('openpyxl is required to import Excel files. Install it in the environment.', 'danger')
+            return redirect(url_for('upload_excel'))
+
+        wb = openpyxl.load_workbook(fname, data_only=True)
+        sheet = wb.active
+        rows = list(sheet.iter_rows(values_only=True))
+        if not rows or len(rows) < 2:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            flash('Spreadsheet contains no data rows', 'warning')
+            return redirect(url_for('upload_excel'))
+
+        headers = [str(h).strip() if h is not None else '' for h in rows[0]]
+
+        # auto-map common headers -> model fields
+        known_map = {
+            'date': 'date',
+            'total_net_sale': 'total_net_sale',
+            'number_of_orders': 'number_of_orders',
+            'net_card_tips': 'net_card_tips',
+            'after_discount_cash': 'after_discount_cash',
+            'dining_cash_and_tips': 'dining_cash_and_tips',
+            'dine_in_tips': 'dine_in_tips',
+            'party_orders_cash': 'party_orders_cash',
+            'biryani_po': 'biryani_po',
+            'event_hall': 'event_hall',
+            'paid_to': 'paid_to',
+            'grubhub': 'grubhub',
+            'doordash': 'doordash',
+            'uber_eats': 'uber_eats',
+            'cancelled_orders': 'cancelled_orders',
+            'notes': 'notes',
+        }
+
+        header_map = {}
+        unmapped = []
+        for i, h in enumerate(headers):
+            key = h.lower().replace(' ', '_')
+            if key in known_map:
+                header_map[i] = known_map[key]
+            else:
+                unmapped.append((i, h))
+
+        # write parsed raw data for confirm step
+        raw_path = os.path.join(tmpdir, f'{session_key}.tsv')
+        with open(raw_path, 'w', encoding='utf-8', newline='') as fh:
+            w = csv.writer(fh, delimiter='\t')
+            w.writerow(headers)
+            for r in rows[1:]:
+                w.writerow(['' if v is None else str(v) for v in r])
+
+        # show preview (first 20 rows) and mapping for confirmation
+        preview = []
+        for r in rows[1: min(len(rows), 21)]:
+            rd = {}
+            for i, v in enumerate(r):
+                fld = header_map.get(i)
+                if fld:
+                    rd[fld] = v
+            preview.append(rd)
+
+        return render_template('upload_excel.html', headers=headers, unmapped=unmapped, preview=preview, session_key=session_key)
+
+    return render_template('upload_excel.html', headers=None, unmapped=None, preview=None, session_key=None)
+
+
+@app.route('/upload/confirm', methods=['POST'])
+@login_required
+def upload_confirm():
+    if not current_user.is_admin:
+        abort(403)
+    session_key = request.form.get('session_key')
+    # find matching temp dir
+    tmpdirs = [os.path.join(tempfile.gettempdir(), d) for d in os.listdir(tempfile.gettempdir()) if d.startswith('bc_upload_')]
+    matched = None
+    raw_path = None
+    for d in tmpdirs:
+        candidate = os.path.join(d, f'{session_key}.tsv')
+        if os.path.exists(candidate):
+            matched = d
+            raw_path = candidate
+            break
+    if not matched or not raw_path:
+        flash('Upload session not found or expired', 'danger')
+        return redirect(url_for('upload_excel'))
+
+    # read raw TSV
+    with open(raw_path, 'r', encoding='utf-8') as fh:
+        r = csv.reader(fh, delimiter='\t')
+        all_rows = list(r)
+    if not all_rows:
+        shutil.rmtree(matched, ignore_errors=True)
+        flash('No data found', 'warning')
+        return redirect(url_for('upload_excel'))
+    headers = all_rows[0]
+    rows = all_rows[1:]
+
+    known_map = {
+        'date': 'date',
+        'total_net_sale': 'total_net_sale',
+        'number_of_orders': 'number_of_orders',
+        'net_card_tips': 'net_card_tips',
+        'after_discount_cash': 'after_discount_cash',
+        'dining_cash_and_tips': 'dining_cash_and_tips',
+        'dine_in_tips': 'dine_in_tips',
+        'party_orders_cash': 'party_orders_cash',
+        'biryani_po': 'biryani_po',
+        'event_hall': 'event_hall',
+        'paid_to': 'paid_to',
+        'grubhub': 'grubhub',
+        'doordash': 'doordash',
+        'uber_eats': 'uber_eats',
+        'cancelled_orders': 'cancelled_orders',
+        'notes': 'notes',
+    }
+    header_map = {}
+    for i, h in enumerate(headers):
+        key = h.lower().replace(' ', '_')
+        if key in known_map:
+            header_map[i] = known_map[key]
+
+    db = SessionLocal()
+    created = 0
+    skipped = 0
+    skipped_rows = []
+    errors = []
+
+    def pnum(x):
+        try:
+            return float(x)
+        except Exception:
+            return 0.0
+
+    for r in rows:
+        try:
+            rowd = {}
+            for i, v in enumerate(r):
+                fld = header_map.get(i)
+                if fld and v != '':
+                    rowd[fld] = v
+            if 'date' not in rowd or not rowd['date']:
+                skipped += 1
+                skipped_rows.append({'reason': 'missing_date', 'row': r})
+                continue
+            try:
+                tx_date = date.fromisoformat(rowd['date'])
+            except Exception:
+                skipped += 1
+                skipped_rows.append({'reason': 'invalid_date', 'row': r})
+                continue
+            if db.query(Transaction).filter(Transaction.date == tx_date).first():
+                skipped += 1
+                skipped_rows.append({'reason': 'duplicate_date', 'row': r, 'date': str(tx_date)})
+                continue
+
+            total_net_sale_val = pnum(rowd.get('total_net_sale', 0))
+            voids = float(total_net_sale_val * 0.95)
+            dineCash = pnum(rowd.get('dining_cash_and_tips', 0))
+            dineTips = pnum(rowd.get('dine_in_tips', 0))
+            party = pnum(rowd.get('party_orders_cash', 0))
+            biryani = pnum(rowd.get('biryani_po', 0))
+            eventHall = pnum(rowd.get('event_hall', 0))
+            paid_to_val = pnum(rowd.get('paid_to', 0))
+            total_cash_val = voids + dineCash + dineTips + party + biryani + eventHall - paid_to_val
+            afterDiscount = pnum(rowd.get('after_discount_cash', 0))
+            netCard = pnum(rowd.get('net_card_tips', 0))
+            doordash_val = pnum(rowd.get('doordash', 0))
+            uber = pnum(rowd.get('uber_eats', 0))
+            grub = pnum(rowd.get('grubhub', 0))
+            cancelled = pnum(rowd.get('cancelled_orders', 0))
+            gross_val = total_cash_val + (afterDiscount + netCard + doordash_val + uber + grub) - cancelled
+            toastFeesVal = 0.0
+            doordashFeesVal = 0.0
+            uberFeesVal = 0.0
+            grubFeesVal = 0.0
+            net_val = gross_val - (toastFeesVal + doordashFeesVal + uberFeesVal + grubFeesVal)
+            staff_commission_val = float(party * 0.10)
+
+            tx = Transaction(
+                user_id=current_user.id,
+                date=tx_date,
+                total_net_sale=total_net_sale_val,
+                number_of_orders=int(pnum(rowd.get('number_of_orders', 0))) if rowd.get('number_of_orders') else 0,
+                net_card_tips=pnum(rowd.get('net_card_tips', 0)),
+                voids_cash_sale=voids,
+                after_discount_cash=pnum(rowd.get('after_discount_cash', 0)),
+                dining_cash_and_tips=pnum(rowd.get('dining_cash_and_tips', 0)),
+                dine_in_tips=pnum(rowd.get('dine_in_tips', 0)),
+                party_orders_cash=pnum(rowd.get('party_orders_cash', 0)),
+                biryani_po=pnum(rowd.get('biryani_po', 0)),
+                event_hall=pnum(rowd.get('event_hall', 0)),
+                paid_to=paid_to_val,
+                total_cash=total_cash_val,
+                grubhub=pnum(rowd.get('grubhub', 0)),
+                doordash=pnum(rowd.get('doordash', 0)),
+                uber_eats=pnum(rowd.get('uber_eats', 0)),
+                cancelled_orders=pnum(rowd.get('cancelled_orders', 0)),
+                gross_revenue=gross_val,
+                staff_commission=staff_commission_val,
+                toast_fees=0.0,
+                doordash_fees=0.0,
+                uber_eats_fees=0.0,
+                grubhub_fees=0.0,
+                net_revenue=net_val,
+                notes=rowd.get('notes', ''),
+            )
+            tx.last_edited_by = current_user.id
+            db.add(tx)
+            db.commit()
+            log = AuditLog(actor_id=current_user.id, action='import_create', tx_id=tx.id, details=f'Imported transaction for {tx.date}')
+            db.add(log)
+            db.commit()
+            created += 1
+        except Exception as e:
+            db.rollback()
+            errors.append({'error': str(e), 'row': r})
+            continue
+
+    # write logs
+    outdir = os.path.join('/tmp', 'bc_imports', session_key)
+    os.makedirs(outdir, exist_ok=True)
+    skpath = None
+    errpath = None
+    try:
+        if skipped_rows:
+            skpath = os.path.join(outdir, 'skipped_rows.csv')
+            with open(skpath, 'w', newline='', encoding='utf-8') as skf:
+                w = csv.writer(skf)
+                w.writerow(['reason', 'original_row'])
+                for s in skipped_rows:
+                    w.writerow([s.get('reason'), '\t'.join([str(x) for x in s.get('row', [])])])
+        if errors:
+            errpath = os.path.join(outdir, 'errors.csv')
+            with open(errpath, 'w', newline='', encoding='utf-8') as ef:
+                w = csv.writer(ef)
+                w.writerow(['error', 'original_row'])
+                for e in errors:
+                    w.writerow([e.get('error'), '\t'.join([str(x) for x in e.get('row', [])])])
+    except Exception:
+        pass
+
+    # cleanup temp raw files
+    try:
+        shutil.rmtree(matched, ignore_errors=True)
+    except Exception:
+        pass
+
+    flash(f'Import finished: created={created}, skipped={skipped}, errors={len(errors)}', 'success' if not errors else 'warning')
+    msgs = []
+    if skpath:
+        msgs.append(f'skipped_rows: {skpath}')
+    if errpath:
+        msgs.append(f'errors: {errpath}')
+    if msgs:
+        flash('Logs: ' + '; '.join(msgs), 'info')
+    return redirect(url_for('index'))
+
+
+
 
 
 if __name__ == '__main__':

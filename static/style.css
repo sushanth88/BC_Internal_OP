@@ -3,7 +3,12 @@ body { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue'
 .nav a.active { font-weight: 600; text-decoration: underline }
 .header-summary { font-size: 0.95rem; color: #222; margin-left: 12px }
 header h1 { margin: 0; }
+/* Brand row: logo + title inline */
+.brand-row { display:flex; align-items:center; gap: 12px; }
+.brand-row .site-title { margin: 0; font-size: 1.8rem; line-height: 1.2; }
 table { border-collapse: collapse; width: 100%; }
 table th, table td { padding: 8px 10px; border: 1px solid #ddd; }
 .container { max-width: 960px; margin: 24px auto; }
 .topbar { display:flex; justify-content:space-between; align-items:center }
+/* Logo styles */
+.site-logo { display:block; width: 56px; height: auto; margin: 2px 0; }

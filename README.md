@@ -1,4 +1,4 @@
-# Internal Accounting (Flask)
+# Biryani City Portal (Flask)
 
 Simple internal accounting app using Flask + SQLite. Two user roles: admin and regular.
 
