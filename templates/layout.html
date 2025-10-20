@@ -204,5 +204,57 @@
       });
     </script>
     {% block scripts %}{% endblock %}
+    <script>
+      // Enhance nav submenu for touch/keyboard users
+      (function(){
+        var nav = document.querySelector('.nav');
+        if (!nav) return;
+        // Toggle on click for parent anchors with submenu
+        nav.addEventListener('click', function(e){
+          var a = e.target.closest('a.parent');
+          if (!a) return;
+          var item = a.parentElement;
+          var submenu = item && item.querySelector('.submenu');
+          if (!submenu) return;
+          // If clicking the parent and submenu exists, prevent immediate navigation for touch toggle
+          // Allow navigation if modifier keys present
+          if (!(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) {
+            e.preventDefault();
+          }
+          var expanded = a.getAttribute('aria-expanded') === 'true';
+          a.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+          item.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        });
+
+        // Keyboard support: Enter/Space toggles, Escape closes
+        nav.addEventListener('keydown', function(e){
+          var a = e.target.closest('a.parent');
+          if (a && (e.key === 'Enter' || e.key === ' ')){
+            e.preventDefault();
+            a.click();
+          }
+          if (e.key === 'Escape'){
+            var open = nav.querySelector('.nav-item[aria-expanded="true"] a.parent');
+            if (open){
+              open.setAttribute('aria-expanded','false');
+              open.parentElement.setAttribute('aria-expanded','false');
+              open.focus();
+            }
+          }
+        });
+
+        // Close submenu when clicking outside
+        document.addEventListener('click', function(e){
+          var inside = e.target.closest('.nav .nav-item');
+          if (!inside){
+            var opened = nav.querySelectorAll('.nav-item[aria-expanded="true"] a.parent');
+            opened.forEach(function(a){
+              a.setAttribute('aria-expanded','false');
+              if (a.parentElement) a.parentElement.setAttribute('aria-expanded','false');
+            });
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

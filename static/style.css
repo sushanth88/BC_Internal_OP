@@ -76,3 +76,45 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 html, body, header, main, .charts, table, .nav a, .header-summary {
 	transition: background-color .12s ease, color .12s ease, border-color .12s ease;
 }
+
+/* Nav with dropdown submenu */
+.nav { position: relative; display: inline-flex; gap: 4px; align-items: center; }
+.nav .nav-item { position: relative; display: inline-block; }
+.nav .nav-item > a.parent { padding-right: 16px; }
+.nav .nav-item .submenu {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	min-width: 180px;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+	border-radius: 8px;
+	padding: 6px;
+	display: block;
+	opacity: 0;
+	visibility: hidden;
+	transform: translateY(-6px);
+	transition: opacity .16s ease, transform .18s ease, visibility .16s ease;
+	z-index: 20;
+}
+.nav .nav-item .submenu a {
+	display: block;
+	padding: 6px 10px;
+	border-radius: 6px;
+	color: var(--text);
+	text-decoration: none;
+}
+.nav .nav-item .submenu a:hover { background: color-mix(in srgb, var(--link) 14%, transparent); color: var(--text); }
+
+/* reveal submenu on hover or when expanded via JS */
+.nav .nav-item:hover > .submenu,
+.nav .nav-item:focus-within > .submenu,
+.nav .nav-item[aria-expanded="true"] > .submenu {
+	opacity: 1;
+	visibility: visible;
+	transform: translateY(0);
+}
+
+/* caret style for parent */
+.nav .nav-item > a.parent::after { content: ''; }

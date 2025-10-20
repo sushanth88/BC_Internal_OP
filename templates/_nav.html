@@ -4,7 +4,16 @@
   <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
       <a href="{{ url_for('sales') }}" class="{% if request.path == url_for('sales') %}active{% endif %}">Sales</a>
       {% if current_user.is_authenticated %}
-        <a href="{{ url_for('expenses') }}" class="{% if request.path.startswith('/expenses') %}active{% endif %}">Expenses</a>
+        <div class="has-submenu nav-item">
+          <a href="{{ url_for('expenses') }}"
+             class="{% if request.path.startswith('/expenses') %}active{% endif %} parent"
+             aria-haspopup="true" aria-expanded="false">Expenses ▾</a>
+          <div class="submenu" role="menu" aria-label="Expenses subpages">
+            <a href="{{ url_for('expenses_salaries') }}" role="menuitem" class="{% if request.path == url_for('expenses_salaries') %}active{% endif %}">Salaries</a>
+            <a href="{{ url_for('expenses_restaurant') }}" role="menuitem" class="{% if request.path == url_for('expenses_restaurant') %}active{% endif %}">Restaurant</a>
+            <a href="{{ url_for('expenses_guest_house') }}" role="menuitem" class="{% if request.path == url_for('expenses_guest_house') %}active{% endif %}">Guest House</a>
+          </div>
+        </div>
       {% endif %}
       {% if current_user.is_authenticated %}
         {% if current_user.is_admin %}
