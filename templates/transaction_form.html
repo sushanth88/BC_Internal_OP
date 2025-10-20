@@ -57,8 +57,13 @@
       }
 
       function compute(){
+        // Voids Cash Sale (After 5% Discount) = total_net_sale * 0.95
+        var totalNet = parse(document.querySelector('[name="total_net_sale"]').value);
+        var voids = totalNet * 0.95;
+        var voidsEl = document.querySelector('[name="voids_cash_sale"]');
+        if (voidsEl) voidsEl.value = voids.toFixed(2);
+
         // Total Cash = sum(voids_cash_sale + dining_cash_and_tips + dine_in_tips + party_orders_cash + biryani_po + event_hall) - paid_to
-        var voids = parse(document.querySelector('[name="voids_cash_sale"]').value);
         var dineCash = parse(document.querySelector('[name="dining_cash_and_tips"]').value);
         var dineTips = parse(document.querySelector('[name="dine_in_tips"]').value);
         var party = parse(document.querySelector('[name="party_orders_cash"]').value);
@@ -94,8 +99,8 @@
         if(netEl) netEl.value = net.toFixed(2);
       }
 
-      // attach listeners to inputs that affect calculations
-  var fields = ['voids_cash_sale','dining_cash_and_tips','dine_in_tips','party_orders_cash','biryani_po','event_hall','paid_to','after_discount_cash','net_card_tips','doordash','uber_eats','grubhub','cancelled_orders','toast_fees','doordash_fees','uber_eats_fees','grubhub_fees','party_orders_cash'];
+    // attach listeners to inputs that affect calculations
+  var fields = ['total_net_sale','dining_cash_and_tips','dine_in_tips','party_orders_cash','biryani_po','event_hall','paid_to','after_discount_cash','net_card_tips','doordash','uber_eats','grubhub','cancelled_orders','toast_fees','doordash_fees','uber_eats_fees','grubhub_fees'];
       fields.forEach(function(name){
         var el = document.querySelector('[name="'+name+'"]');
         if(el){ el.addEventListener('input', compute); el.addEventListener('change', compute); }
