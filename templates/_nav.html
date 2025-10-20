@@ -11,7 +11,7 @@
         {% endif %}
         {% if current_user.is_admin %}
           <a href="{{ url_for('audit_logs') }}" class="{% if request.path.startswith(url_for('audit_logs')) %}active{% endif %}">Audit</a>
-          <a href="{{ url_for('upload_excel') }}" class="{% if request.path.startswith(url_for('upload_excel')) %}active{% endif %}">Import</a>
+          {# Import feature removed #}
         {% endif %}
       {% endif %}
     </nav>
