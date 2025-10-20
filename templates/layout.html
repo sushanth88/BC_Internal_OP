@@ -45,7 +45,9 @@
     </noscript>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
-  <body>
+  <body data-page="{{ request.endpoint }}">
+    {% set is_login = (request.endpoint == 'login') %}
+    {% if not is_login %}
     <header>
       <div class="brand-row" style="justify-content: space-between;">
         <div class="brand-left" style="display:flex; align-items:center; gap:12px;">
@@ -78,6 +80,7 @@
       {% endif %}
       <hr />
     </header>
+    {% endif %}
     <main>
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

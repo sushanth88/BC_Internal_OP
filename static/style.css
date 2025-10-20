@@ -77,6 +77,9 @@ html, body, header, main, .charts, table, .nav a, .header-summary {
 	transition: background-color .12s ease, color .12s ease, border-color .12s ease;
 }
 
+/* Login page minimal layout: center content when header/nav are hidden */
+body[data-page="login"] main { max-width: 420px; margin: 56px auto; }
+
 /* Nav with dropdown submenu */
 .nav { position: relative; display: inline-flex; gap: 4px; align-items: center; }
 .nav .nav-item { position: relative; display: inline-block; }
