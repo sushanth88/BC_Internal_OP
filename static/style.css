@@ -6,7 +6,7 @@
 	--link: #0366d6;
 	--border: #e5e7eb;
 	color-scheme: light dark;
-	--font-sans: 'SF Pro Display', 'SF Pro Text', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+	--font-sans: 'SF Pro Text', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
 @media (prefers-color-scheme: dark) {

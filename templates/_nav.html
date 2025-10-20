@@ -1,7 +1,7 @@
 <div class="topbar">
   <div>
     <nav class="nav">
-      <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Home</a>
+  <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
       <a href="{{ url_for('sales') }}" class="{% if request.path == url_for('sales') %}active{% endif %}">Sales</a>
       {% if current_user.is_authenticated %}
         {% if current_user.is_admin %}
