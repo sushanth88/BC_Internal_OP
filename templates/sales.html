@@ -5,6 +5,17 @@
     <details class="admin-actions">
       <summary>Admin actions</summary>
       <p><a href="{{ url_for('new_transaction') }}" class="button-link">New Transaction</a></p>
+      <form method="post" action="{{ url_for('admin_delete_selected') }}" id="top-delete-selected" style="margin-top: 0.5rem;">
+        {{ bulk_delete_form.hidden_tag() }}
+        <button type="submit">Delete Selected</button>
+      </form>
+      <form method="post" action="{{ url_for('admin_delete_all') }}" id="delete-all-form" style="margin-top: 0.5rem;">
+        {{ delete_all_form.hidden_tag() }}
+        <label>
+          Confirm: {{ delete_all_form.confirm(size=14, placeholder="Type DELETE ALL") }}
+        </label>
+        <button type="submit" style="background: var(--error, #b00020); color: white;">Delete ALL</button>
+      </form>
     </details>
   {% else %}
     {# regular user: if transactions list (today's) exists show edit link to first one #}
@@ -16,9 +27,12 @@
   {% endif %}
 
   {% if transactions %}
+    <form id="tx-table-form" method="post" action="{{ url_for('admin_delete_selected') }}">
+    {{ bulk_delete_form.hidden_tag() if current_user.is_admin }}
     <table>
       <thead>
         <tr>
+          {% if current_user.is_admin %}<th><input type="checkbox" id="select-all"></th>{% endif %}
           <th>Date</th>
           <th>Created By</th>
           <th>Created At</th>
@@ -33,6 +47,7 @@
       <tbody>
       {% for tx in transactions %}
         <tr>
+          {% if current_user.is_admin %}<td><input type="checkbox" name="ids" value="{{ tx.id }}"></td>{% endif %}
           <td>{{ tx.date }}</td>
           <td>{{ tx.user.username }}</td>
           <td>{{ tx.created_at.strftime('%Y-%m-%d %H:%M') if tx.created_at else '-' }}</td>
@@ -53,6 +68,77 @@
       {% endfor %}
       </tbody>
     </table>
+    </form>
+    {% if current_user.is_admin %}
+    <style>
+      .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+      .modal-overlay.show { display: flex; }
+      .modal { background: var(--background, #fff); color: inherit; padding: 1rem 1.25rem; border-radius: 8px; max-width: 420px; width: 92%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+      .modal h3 { margin-top: 0; }
+      .modal .actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+      .btn-danger { background: var(--error, #b00020); color: #fff; border: none; padding: .5rem .9rem; border-radius: 6px; cursor: pointer; }
+      .btn-secondary { background: transparent; border: 1px solid currentColor; padding: .5rem .9rem; border-radius: 6px; cursor: pointer; }
+    </style>
+    <div id="confirmOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-hidden="true">
+      <div class="modal">
+        <h3 id="confirmTitle">Confirm deletion</h3>
+        <p id="confirmText">Are you sure you want to delete the selected transactions?</p>
+        <div class="actions">
+          <button type="button" class="btn-secondary" id="cancelDelete">Cancel</button>
+          <button type="button" class="btn-danger" id="confirmDelete">Delete</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      const selectAll = document.getElementById('select-all');
+      if (selectAll) {
+        selectAll.addEventListener('change', () => {
+          document.querySelectorAll('input[name="ids"]').forEach(cb => { cb.checked = selectAll.checked; });
+        });
+      }
+      (function(){
+        const overlay = document.getElementById('confirmOverlay');
+        const confirmBtn = document.getElementById('confirmDelete');
+        const cancelBtn = document.getElementById('cancelDelete');
+        const confirmText = document.getElementById('confirmText');
+        const tableForm = document.getElementById('tx-table-form');
+        const topDelete = document.getElementById('top-delete-selected');
+
+        function openModal(count){
+          confirmText.textContent = `Delete ${count} selected transaction${count>1?'s':''}? This cannot be undone.`;
+          overlay.classList.add('show');
+          overlay.setAttribute('aria-hidden','false');
+        }
+        function closeModal(){
+          overlay.classList.remove('show');
+          overlay.setAttribute('aria-hidden','true');
+        }
+        cancelBtn?.addEventListener('click', closeModal);
+        overlay?.addEventListener('click', (e)=>{ if(e.target===overlay) closeModal(); });
+        document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
+
+        function interceptSubmit(e){
+          const selected = document.querySelectorAll('input[name="ids"]:checked');
+          if (!selected.length) {
+            e.preventDefault();
+            alert('Please select at least one transaction to delete.');
+            return false;
+          }
+          e.preventDefault();
+          openModal(selected.length);
+          return false;
+        }
+
+        tableForm?.addEventListener('submit', interceptSubmit);
+        topDelete?.addEventListener('submit', interceptSubmit);
+
+        confirmBtn?.addEventListener('click', ()=>{
+          closeModal();
+          tableForm?.submit();
+        });
+      })();
+    </script>
+    {% endif %}
   {% else %}
     <p>No transactions found.</p>
   {% endif %}

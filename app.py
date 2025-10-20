@@ -1,7 +1,8 @@
 import os
+import re
 from datetime import date, datetime
 
-from flask import Flask, render_template, redirect, url_for, flash, request, abort
+from flask import Flask, render_template, redirect, url_for, flash, request, abort, make_response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from flask_wtf import FlaskForm, CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -187,6 +188,15 @@ class UploadTransactionsForm(FlaskForm):
     ])
     overwrite = BooleanField('Overwrite existing dates (upsert)')
     submit = SubmitField('Import')
+
+
+class BulkDeleteForm(FlaskForm):
+    submit = SubmitField('Delete Selected')
+
+
+class DeleteAllForm(FlaskForm):
+    confirm = StringField('Type DELETE ALL to confirm', default='')
+    submit = SubmitField('Delete ALL')
 
 
 def init_db():
@@ -410,6 +420,13 @@ def index():
 @app.route('/sales')
 @login_required
 def sales():
+    # Redirect Sales landing to the Transactions subpage for now
+    return redirect(url_for('sales_transactions'))
+
+
+@app.route('/sales/transactions')
+@login_required
+def sales_transactions():
     db = SessionLocal()
     if current_user.is_admin:
         txs = db.query(Transaction).order_by(Transaction.date.desc()).limit(100).all()
@@ -417,7 +434,9 @@ def sales():
         # regular users see only today's transaction (global)
         today_d = date.today()
         txs = db.query(Transaction).filter(Transaction.date == today_d).all()
-    return render_template('sales.html', transactions=txs, today=date.today())
+    bulk_delete_form = BulkDeleteForm()
+    delete_all_form = DeleteAllForm()
+    return render_template('sales_transactions.html', transactions=txs, today=date.today(), bulk_delete_form=bulk_delete_form, delete_all_form=delete_all_form)
 
 
 # Expenses pages
@@ -522,11 +541,43 @@ def _parse_float(val):
 
 
 def _row_to_tx_fields(row: dict):
+    def _normalize_key(s: str) -> str:
+        # normalize header: lowercase, spaces/dashes to underscore, remove punctuation, collapse repeats
+        s = str(s).strip().lower()
+        s = s.replace(' ', '_').replace('-', '_')
+        s = re.sub(r'[^a-z0-9_]+', '', s)
+        s = re.sub(r'_+', '_', s)
+        return s
+
+    # Build normalized mapping and apply synonyms for known long labels
     norm = {}
+    synonyms = {
+        # Long labels in the official template
+        'catering_orders_exclude_biryani_trays': 'catering_orders',
+        'event_hall_rental_food': 'event_hall',
+        'paid_to_employee_add_name_in_notes': 'paid_to',
+        # Common alternates that we already partially accept elsewhere
+        'dine_in_cash': 'dine_in_cash',
+        'biryani_trays': 'biryani_trays',
+        'toast_card_sale': 'toast_card_sale',
+        'total_voids': 'total_voids',
+    }
+
     for k, v in row.items():
-        key = str(k).strip().lower().replace(' ', '_').replace('-', '_')
-        norm[key] = v
-    get = lambda *names: next((norm[n] for n in names if n in norm), None)
+        key = _normalize_key(k)
+        canon = synonyms.get(key, key)
+        norm[canon] = v
+    def get(*names):
+        # exact match first
+        for n in names:
+            if n in norm:
+                return norm[n]
+        # fallback: try prefix/substring matches for robustness
+        for n in names:
+            for k in norm.keys():
+                if k.startswith(n) or n in k:
+                    return norm[k]
+        return None
     fields = {}
     d = get('date')
     fields['date'] = _parse_date(d) if d is not None else None
@@ -539,10 +590,10 @@ def _row_to_tx_fields(row: dict):
         'after_discount_cash': f('after_discount_cash', 'toast_card_sale'),
         'dining_cash_and_tips': f('dining_cash_and_tips', 'dine_in_cash'),
         'dine_in_tips': f('dine_in_tips'),
-        'party_orders_cash': f('party_orders_cash', 'catering_orders'),
+        'party_orders_cash': f('party_orders_cash', 'catering_orders', 'catering_orders_exclude_biryani_trays'),
         'biryani_po': f('biryani_po', 'biryani_trays'),
-        'event_hall': f('event_hall'),
-        'paid_to': f('paid_to'),
+        'event_hall': f('event_hall', 'event_hall_rental_food'),
+        'paid_to': f('paid_to', 'paid_to_employee_add_name_in_notes'),
         'grubhub': f('grubhub'),
         'doordash': f('doordash'),
         'uber_eats': f('uber_eats'),
@@ -775,6 +826,63 @@ def delete_transaction(tx_id):
     return redirect(url_for('index'))
 
 
+@app.route('/admin/transactions/delete-selected', methods=['POST'])
+@login_required
+def admin_delete_selected():
+    if not current_user.is_admin:
+        abort(403)
+    form = BulkDeleteForm()
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        return redirect(url_for('sales'))
+    ids = request.form.getlist('ids')
+    try:
+        ids = [int(x) for x in ids]
+    except Exception:
+        ids = []
+    if not ids:
+        flash('No transactions selected.', 'warning')
+        return redirect(url_for('sales'))
+    db = SessionLocal()
+    deleted = 0
+    for _id in ids:
+        tx = db.get(Transaction, _id)
+        if not tx:
+            continue
+        db.delete(tx)
+        db.commit()
+        log = AuditLog(actor_id=current_user.id, action='delete', tx_id=_id, details='[bulk] Deleted via Delete Selected')
+        db.add(log)
+        db.commit()
+        deleted += 1
+    flash(f'Deleted {deleted} transactions.', 'success')
+    return redirect(url_for('sales'))
+
+
+@app.route('/admin/transactions/delete-all', methods=['POST'])
+@login_required
+def admin_delete_all():
+    if not current_user.is_admin:
+        abort(403)
+    form = DeleteAllForm()
+    if not form.validate_on_submit():
+        flash('Invalid request.', 'danger')
+        return redirect(url_for('sales'))
+    confirm_text = (form.confirm.data or '').strip()
+    if confirm_text != 'DELETE ALL':
+        flash("To delete ALL transactions, type 'DELETE ALL' in the confirmation box.", 'warning')
+        return redirect(url_for('sales'))
+    db = SessionLocal()
+    count = db.query(Transaction).count()
+    db.query(Transaction).delete()
+    db.commit()
+    log = AuditLog(actor_id=current_user.id, action='delete', tx_id=None, details=f'[bulk] Deleted ALL transactions (count={count})')
+    db.add(log)
+    db.commit()
+    flash(f'All transactions deleted (count={count}).', 'success')
+    return redirect(url_for('sales'))
+
+
 @app.route('/admin/upload', methods=['GET', 'POST'])
 @login_required
 def admin_upload():
@@ -933,6 +1041,45 @@ def admin_upload():
         else:
             flash(f'Import completed. Created: {created}, Updated: {updated}, Skipped: {skipped}', 'success')
     return render_template('admin_upload.html', form=form, summary=summary)
+
+
+@app.route('/admin/upload/template.csv')
+@login_required
+def admin_upload_template_csv():
+    if not current_user.is_admin:
+        abort(403)
+    # CSV header aligned with the official Excel template headers
+    headers = [
+        'Date',
+        'Number of Orders',
+        'Total Voids',
+        'Dine-In Cash',
+        'Catering Orders (Exclude Biryani Trays)',
+        'Biryani Trays',
+        'Event Hall Rental & Food',
+        'Paid to Employee (Add Name in Notes)',
+        'Toast Card Sale',
+        'Net Card Tips',
+        'Doordash',
+        'Uber Eats',
+        'Grubhub',
+        'Cancelled Orders',
+        'Toast Fees',
+        'Doordash Fees',
+        'Uber Eats Fees',
+        'Grubhub Fees',
+        'Cash Verified By Owner',
+        'Notes',
+    ]
+    import io, csv as _csv
+    sio = io.StringIO()
+    writer = _csv.writer(sio)
+    writer.writerow(headers)
+    csv_text = sio.getvalue()
+    resp = make_response(csv_text)
+    resp.headers['Content-Disposition'] = 'attachment; filename=BC_Sales_Template.csv'
+    resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    return resp
 
 
 @app.route('/admin/audit-logs')

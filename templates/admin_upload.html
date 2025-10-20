@@ -2,6 +2,9 @@
 {% block content %}
   <h2>Bulk Upload Transactions (Admin)</h2>
   <p>Upload a CSV or Excel (.xlsx) file with a header row. Required column: <strong>Date</strong>. Others are optional and will default to 0. Supported columns map to the transaction form fields.</p>
+  <p>
+    <a href="{{ url_for('admin_upload_template_csv') }}" class="button">Download CSV template</a>
+  </p>
   <form method="post" enctype="multipart/form-data">
     {{ form.hidden_tag() }}
     <div>

@@ -4,7 +4,14 @@
   {% if current_user.is_authenticated and current_user.is_admin %}
     <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
   {% endif %}
-      <a href="{{ url_for('sales') }}" class="{% if request.path == url_for('sales') %}active{% endif %}">Sales</a>
+      <div class="has-submenu nav-item">
+        <a href="{{ url_for('sales_transactions') }}"
+           class="{% if request.path.startswith('/sales') %}active{% endif %} parent"
+           aria-haspopup="true" aria-expanded="false">Sales ▾</a>
+        <div class="submenu" role="menu" aria-label="Sales subpages">
+          <a href="{{ url_for('sales_transactions') }}" role="menuitem" class="{% if request.path == url_for('sales_transactions') %}active{% endif %}">Transactions</a>
+        </div>
+      </div>
       {% if current_user.is_authenticated and current_user.is_admin %}
         <div class="has-submenu nav-item">
           <a href="{{ url_for('expenses') }}"
