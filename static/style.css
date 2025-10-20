@@ -78,10 +78,23 @@ html, body, header, main, .charts, table, .nav a, .header-summary {
 }
 
 /* Login page minimal layout: center content when header/nav are hidden */
-body[data-page="login"] main { max-width: 420px; margin: 56px auto; }
+/* Center the login content both vertically and horizontally */
+body[data-page="login"] {
+	min-height: 100vh;
+	display: grid;
+	place-items: center;
+}
+body[data-page="login"] main { max-width: 420px; width: 100%; margin: 0 auto; text-align: center; }
 body[data-page="login"] .login-brand { text-align: center; margin-bottom: 12px; }
 body[data-page="login"] .login-logo { width: 72px; height: auto; display: inline-block; margin-bottom: 6px; border-radius: 6px; }
 body[data-page="login"] .login-title { margin: 0 0 8px; font-size: 1.4rem; color: var(--text); }
+body[data-page="login"] form { text-align: left; margin: 0 auto; }
+body[data-page="login"] form > div { margin-bottom: 10px; }
+body[data-page="login"] input[type="text"],
+body[data-page="login"] input[type="password"],
+body[data-page="login"] input[type="submit"] {
+	width: 100%;
+}
 
 /* Nav with dropdown submenu */
 .nav { position: relative; display: inline-flex; gap: 4px; align-items: center; }
