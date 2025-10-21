@@ -137,6 +137,19 @@ body[data-page="login"] input[type="submit"] {
 	width: 100%;
 }
 
+/* Smaller centered login button */
+.login-actions { text-align: center; margin-top: 10px; }
+.btn-login {
+	padding: 6px 12px;
+	font-size: 0.95rem;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: transparent;
+	color: var(--text);
+	cursor: pointer;
+}
+.btn-login:hover { background: color-mix(in srgb, var(--link) 8%, transparent); }
+
 /* Nav with dropdown submenu */
 .nav { position: relative; display: inline-flex; gap: 4px; align-items: center; }
 .nav .nav-item { position: relative; display: inline-block; }

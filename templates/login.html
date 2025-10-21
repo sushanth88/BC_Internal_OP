@@ -15,8 +15,8 @@
       {{ form.password.label }}<br>
       {{ form.password(size=32) }}
     </div>
-    <div>
-      {{ form.submit() }}
+    <div class="login-actions">
+      {{ form.submit(class_='btn-login') }}
     </div>
   </form>
 {% endblock %}
