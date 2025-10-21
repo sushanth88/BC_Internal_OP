@@ -54,10 +54,50 @@ header .site-title { color: var(--text); font-family: var(--font-sans); letter-s
 .brand-left { display:flex; align-items:center; gap:12px; }
 table { border-collapse: collapse; width: 100%; }
 table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
+
+/* Tight, non-wrapping transaction tables */
+.tx-table { table-layout: auto; width: 100%; border-collapse: collapse; }
+.tx-table th, .tx-table td {
+	padding: 8px 10px; border: 1px solid var(--border); vertical-align: middle;
+	white-space: nowrap; /* prevent wrapping */
+}
+.tx-table th { font-weight: 600; }
+.tx-table td.numeric { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace; }
+.tx-table td.actions, .tx-table th.actions { text-align: center; white-space: nowrap; }
+.tx-table tr:hover td { background: color-mix(in srgb, var(--link) 6%, transparent); }
 .container { max-width: 960px; margin: 24px auto; }
 .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; }
 /* Logo styles */
 .site-logo { display:block; width: 56px; height: auto; margin: 2px 0; }
+
+/* Column width hints for transaction table (fixed layout) */
+/* Let columns size naturally; use wrapper for horizontal scroll when needed */
+.tx-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tx-table th, .tx-table td { min-width: 40px; }
+
+/* Visual scroll hint: subtle gradient at the right edge when content overflows horizontally */
+.tx-table-wrap { position: relative; }
+.tx-table-wrap::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 48px;
+	height: 100%;
+	pointer-events: none;
+	opacity: 0;
+	transform: translateX(12px);
+	filter: blur(0.6px);
+	transition: opacity .32s cubic-bezier(.2,.9,.2,1), transform .32s cubic-bezier(.2,.9,.2,1), filter .28s ease;
+	background: linear-gradient(to left, rgba(0,0,0,0.14), rgba(0,0,0,0));
+	box-shadow: -6px 0 18px rgba(0,0,0,0.02);
+}
+/* Lighter overlay for dark theme */
+.tx-table-wrap.is-scrollable::after { opacity: 1; transform: translateX(0); filter: blur(0); }
+[data-theme="dark"] .tx-table-wrap::after {
+	background: linear-gradient(to left, rgba(255,255,255,0.12), rgba(255,255,255,0));
+	box-shadow: -6px 0 18px rgba(255,255,255,0.02);
+}
 
 /* Theme toggle alignment */
 .theme-toggle { display:flex; gap:6px; align-items:center; position:absolute; right:0; top:50%; transform: translateY(-50%); }

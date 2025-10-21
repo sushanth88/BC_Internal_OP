@@ -1,13 +1,41 @@
 <!doctype html>
 <html>
   <head>
-    <meta charset="utf-8">
+  <meta charset="utf-8">
   <title>Biryani City Portal</title>
     {# CSRF token for JS fetches; Flask-WTF provides csrf_token() when CSRFProtect is enabled #}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="color-scheme" content="light dark">
     <script>
       // Apply stored theme ASAP and preload Water.css variants; enable only the active one
+      // Scroll hint for wide tables: toggle .is-scrollable when horizontally overflowed
+      (function(){
+        function updateHints(){
+          document.querySelectorAll('.tx-table-wrap').forEach(function(wrap){
+            if (!wrap) return;
+            var el = wrap.querySelector('table');
+            if (!el) return;
+            var isOverflow = el.scrollWidth > wrap.clientWidth + 2; // tolerate tiny rounding
+            wrap.classList.toggle('is-scrollable', isOverflow && (wrap.scrollLeft < (el.scrollWidth - wrap.clientWidth - 2)));
+          });
+        }
+        // Bind events
+        window.addEventListener('resize', updateHints);
+        document.addEventListener('themechange', updateHints);
+        // Update when new content may be injected
+        document.addEventListener('DOMContentLoaded', function(){
+          updateHints();
+          document.querySelectorAll('.tx-table-wrap').forEach(function(wrap){
+            wrap.addEventListener('scroll', function(){
+              var el = wrap.querySelector('table');
+              if (!el) return;
+              var atEnd = (wrap.scrollLeft + wrap.clientWidth) >= (el.scrollWidth - 1);
+              wrap.classList.toggle('is-scrollable', !atEnd);
+            });
+          });
+        });
+      })();
+
       (function(){
         try {
           var mode = localStorage.getItem('theme-mode');

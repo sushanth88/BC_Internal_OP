@@ -15,32 +15,31 @@
   {% endif %}
 
   {% if transactions %}
-    <table>
+  <div class="tx-table-wrap">
+  <table class="tx-table">
       <thead>
         <tr>
-          <th>Date</th>
-          <th>Created By</th>
-          <th>Created At</th>
-          <th>Last Edited By</th>
-          <th>Updated At</th>
-          <th>Total Cash</th>
-          <th>Gross Revenue</th>
-          <th>Net Revenue</th>
-          <th>Actions</th>
+          <th class="date">Date</th>
+          <th class="numeric">Total Cash</th>
+          <th class="numeric">Gross Revenue</th>
+          <th class="numeric">Net Revenue</th>
+          <th class="created_at">Created At</th>
+          <th class="updated_at">Updated At</th>
+          <th class="user">Created By</th>
+          <th class="actions">Actions</th>
         </tr>
       </thead>
       <tbody>
       {% for tx in transactions %}
         <tr>
           <td>{{ tx.date }}</td>
-          <td>{{ tx.user.username }}</td>
-          <td>{{ tx.created_at.strftime('%Y-%m-%d %H:%M') if tx.created_at else '-' }}</td>
-          <td>{{ tx.last_edited_user.username if tx.last_edited_user else '-' }}</td>
-          <td>{{ tx.updated_at.strftime('%Y-%m-%d %H:%M') if tx.updated_at else '-' }}</td>
-          <td>{{ tx.total_cash }}</td>
-          <td>{{ tx.gross_revenue }}</td>
-          <td>{{ tx.net_revenue }}</td>
-          <td>
+          <td class="numeric">{{ '%.2f'|format(tx.total_cash or 0) }}</td>
+          <td class="numeric">{{ '%.2f'|format(tx.gross_revenue or 0) }}</td>
+          <td class="numeric">{{ '%.2f'|format(tx.net_revenue or 0) }}</td>
+          <td class="created_at">{{ tx.created_at.strftime('%Y-%m-%d %H:%M') if tx.created_at else '-' }}</td>
+          <td class="updated_at">{{ tx.updated_at.strftime('%Y-%m-%d %H:%M') if tx.updated_at else '-' }}</td>
+          <td class="user">{{ tx.user.username }}</td>
+          <td class="actions">
             {% if current_user.is_admin %}
               <a href="{{ url_for('edit_transaction', tx_id=tx.id) }}">Edit</a>
               <a href="#" class="delete-link" data-id="{{ tx.id }}">Delete</a>
@@ -51,7 +50,8 @@
         </tr>
       {% endfor %}
       </tbody>
-    </table>
+  </table>
+  </div>
   {% else %}
     <p>No transactions found.</p>
   {% endif %}
