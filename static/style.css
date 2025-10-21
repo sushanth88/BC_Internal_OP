@@ -67,6 +67,8 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 .tx-table tr:hover td { background: color-mix(in srgb, var(--link) 6%, transparent); }
 .container { max-width: 960px; margin: 24px auto; }
 .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; }
+/* align inner sections (nav vs user) with consistent spacing */
+.topbar > div { display: flex; align-items: center; gap: 12px; }
 /* Logo styles */
 .site-logo { display:block; width: 56px; height: auto; margin: 2px 0; }
 
@@ -152,9 +154,12 @@ body[data-page="login"] input[type="password"] {
 .btn-login:hover { background: color-mix(in srgb, var(--link) 8%, transparent); }
 
 /* Nav with dropdown submenu */
-.nav { position: relative; display: inline-flex; gap: 4px; align-items: center; }
-.nav .nav-item { position: relative; display: inline-block; }
+.nav { position: relative; display: flex; gap: 16px; align-items: center; }
+.nav .nav-item { position: relative; display: inline-flex; align-items: center; }
 .nav .nav-item > a.parent { padding-right: 16px; }
+/* top-level nav links spacing */
+.nav > a, .nav .nav-item { padding: 6px 8px; border-radius: 6px; }
+.nav > a:hover, .nav .nav-item > a.parent:hover { background: color-mix(in srgb, var(--link) 6%, transparent); }
 .nav .nav-item .submenu {
 	position: absolute;
 	top: calc(100% + 4px);
@@ -196,3 +201,20 @@ body[data-page="login"] input[type="password"] {
 /* submenu utilities */
 .nav .nav-item .submenu.right { left: auto; right: 0; }
 .nav .nav-item .submenu.narrow { min-width: 140px; }
+
+/* Subtle user pill in header */
+.user-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--text) 8%, transparent);
+	color: var(--muted);
+	font-size: 0.95rem;
+}
+.user-pill .user-name { font-weight: 600; color: var(--text); }
+.user-pill .user-role { display: none; }
+.user-pill .user-logout { color: var(--link); text-decoration: none; margin-left: 8px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; }
+.user-pill .user-logout svg { display: block; width: 16px; height: 16px; color: var(--muted); }
+.user-pill .user-logout:hover svg { color: var(--link); }

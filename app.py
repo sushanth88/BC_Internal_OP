@@ -439,6 +439,21 @@ def sales_transactions():
     return render_template('sales_transactions.html', transactions=txs, today=date.today(), bulk_delete_form=bulk_delete_form, delete_all_form=delete_all_form)
 
 
+@app.route('/catering')
+@login_required
+def catering():
+    """Top-level Catering view: list transactions that have catering (party_orders_cash) > 0.
+    Admins see recent entries; regular users see today's catering entries (if any).
+    """
+    db = SessionLocal()
+    if current_user.is_admin:
+        txs = db.query(Transaction).filter(Transaction.party_orders_cash > 0).order_by(Transaction.date.desc()).limit(200).all()
+    else:
+        today_d = date.today()
+        txs = db.query(Transaction).filter(Transaction.date == today_d, Transaction.party_orders_cash > 0).all()
+    return render_template('catering.html', transactions=txs, today=date.today())
+
+
 # Expenses pages
 @app.route('/expenses')
 @login_required
