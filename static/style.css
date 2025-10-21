@@ -132,14 +132,15 @@ body[data-page="login"] .login-title { margin: 0 0 8px; font-size: 1.4rem; color
 body[data-page="login"] form { text-align: left; margin: 0 auto; }
 body[data-page="login"] form > div { margin-bottom: 10px; }
 body[data-page="login"] input[type="text"],
-body[data-page="login"] input[type="password"],
-body[data-page="login"] input[type="submit"] {
-	width: 100%;
+body[data-page="login"] input[type="password"] {
+    width: 100%;
 }
 
 /* Smaller centered login button */
 .login-actions { text-align: center; margin-top: 10px; }
 .btn-login {
+	display: inline-block;
+	width: auto;
 	padding: 6px 12px;
 	font-size: 0.95rem;
 	border-radius: 6px;
