@@ -1,7 +1,6 @@
 <div class="topbar">
   <div>
-      {% if current_user.is_authenticated %}
-        <span class="nav-separator" aria-hidden="true"></span>
+    <nav class="nav">
   {% if current_user.is_authenticated and current_user.is_admin %}
     <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
   {% endif %}
@@ -15,8 +14,9 @@
             <a href="{{ url_for('catering') }}" role="menuitem" class="{% if request.path == url_for('catering') %}active{% endif %}">Catering</a>
           {% endif %}
         </div>
-      </div>
-      {% if current_user.is_authenticated and current_user.is_admin %}
+  </div>
+  
+  {% if current_user.is_authenticated and current_user.is_admin %}
         <div class="has-submenu nav-item">
           <a href="{{ url_for('expenses') }}"
              class="{% if request.path.startswith('/expenses') %}active{% endif %} parent"
