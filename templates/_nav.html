@@ -1,6 +1,7 @@
 <div class="topbar">
   <div>
-    <nav class="nav">
+      {% if current_user.is_authenticated %}
+        <span class="nav-separator" aria-hidden="true"></span>
   {% if current_user.is_authenticated and current_user.is_admin %}
     <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
   {% endif %}
