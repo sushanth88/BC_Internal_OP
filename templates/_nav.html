@@ -10,6 +10,9 @@
            aria-haspopup="true" aria-expanded="false">Sales ▾</a>
         <div class="submenu" role="menu" aria-label="Sales subpages">
           <a href="{{ url_for('sales_transactions') }}" role="menuitem" class="{% if request.path == url_for('sales_transactions') %}active{% endif %}">Transactions</a>
+          {% if current_user.is_authenticated and current_user.is_admin %}
+            <a href="{{ url_for('catering') }}" role="menuitem" class="{% if request.path == url_for('catering') %}active{% endif %}">Catering</a>
+          {% endif %}
         </div>
       </div>
       {% if current_user.is_authenticated and current_user.is_admin %}
@@ -25,13 +28,10 @@
         </div>
       {% endif %}
       {% if current_user.is_authenticated %}
-        {% if current_user.is_admin %}
-          <a href="{{ url_for('catering') }}" class="{% if request.path == url_for('catering') %}active{% endif %}">Catering</a>
-        {% endif %}
+        {# Catering moved into Sales submenu above #}
         {% if current_user.is_admin %}
           <a href="{{ url_for('audit_logs') }}" class="{% if request.path.startswith(url_for('audit_logs')) %}active{% endif %}">Audit</a>
-          <a href="{{ url_for('admin_upload') }}" class="{% if request.path.startswith('/admin/upload') %}active{% endif %}">Upload</a>
-          {# Import feature removed #}
+            {# Upload moved into Admin actions on Transactions page. #}
         {% endif %}
       {% endif %}
     </nav>

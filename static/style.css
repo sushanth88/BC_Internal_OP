@@ -62,6 +62,15 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 	white-space: nowrap; /* prevent wrapping */
 }
 .tx-table th { font-weight: 600; }
+.confirm-modal { display: none; position: fixed; inset: 0; z-index: 1200; }
+.confirm-modal.open { display: block; }
+.confirm-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
+.confirm-modal-panel { position: relative; width: min(600px, 92%); max-width: 600px; margin: 6vh auto; background: var(--bg); color: var(--fg); padding: 1rem 1.25rem; border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); z-index: 1201; }
+.confirm-modal-panel h3 { margin: 0 0 .25rem; font-size: 1.05rem; }
+.confirm-modal-panel p { margin: 0 0 .75rem; color: var(--muted, #666); }
+.confirm-modal-controls { display: flex; gap: .5rem; justify-content: flex-end; }
+.confirm-modal-controls .danger { background: #a94442; color: white; border: none; padding: .35rem .6rem; border-radius: 4px; }
+.confirm-modal-controls button { padding: .35rem .6rem; border-radius: 4px; border: 1px solid #ccc; background: transparent; }
 .tx-table td.numeric { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace; }
 .tx-table td.actions, .tx-table th.actions { text-align: center; white-space: nowrap; }
 .tx-table tr:hover td { background: color-mix(in srgb, var(--link) 6%, transparent); }

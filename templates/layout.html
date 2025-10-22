@@ -209,30 +209,74 @@
         var el = ev.target;
         if (el.classList && el.classList.contains('delete-link')) {
           ev.preventDefault();
-          if (!confirm('Delete transaction ' + el.dataset.id + '?')) return;
-          // read optional CSRF token from meta tag if present
-          var headers = {'Content-Type': 'application/x-www-form-urlencoded'};
-          var meta = document.querySelector('meta[name="csrf-token"]');
-          if (meta && meta.content) {
-            headers['X-CSRFToken'] = meta.content;
-          }
-          fetch('/transactions/' + el.dataset.id + '/delete', { method: 'POST', headers: headers, credentials: 'same-origin' })
-            .then(function(r){
-              if (r.ok) {
-                location.reload();
-              } else if (r.status === 403) {
-                alert('Forbidden: you do not have permission to delete this transaction.');
-              } else if (r.status === 401) {
-                // probably logged out
-                alert('You appear to be logged out. Please refresh and log in again.');
-                location.reload();
-              } else {
-                r.text().then(function(t){ console.error(t); alert('Delete failed'); });
-              }
-            })
-            .catch(function(){ alert('Delete failed'); });
+          // Use modal confirmation if available, otherwise fallback to native confirm
+          var ask = window.showConfirm ? window.showConfirm({ title: 'Delete transaction', message: 'Delete transaction ' + el.dataset.id + '?' }) : Promise.resolve(confirm('Delete transaction ' + el.dataset.id + '?'));
+          ask.then(function(yes){
+            if(!yes) return;
+            // read optional CSRF token from meta tag if present
+            var headers = {'Content-Type': 'application/x-www-form-urlencoded'};
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && meta.content) {
+              headers['X-CSRFToken'] = meta.content;
+            }
+            fetch('/transactions/' + el.dataset.id + '/delete', { method: 'POST', headers: headers, credentials: 'same-origin' })
+              .then(function(r){
+                if (r.ok) {
+                  location.reload();
+                } else if (r.status === 403) {
+                  alert('Forbidden: you do not have permission to delete this transaction.');
+                } else if (r.status === 401) {
+                  alert('You appear to be logged out. Please refresh and log in again.');
+                  location.reload();
+                } else {
+                  r.text().then(function(t){ console.error(t); alert('Delete failed'); });
+                }
+              })
+              .catch(function(){ alert('Delete failed'); });
+          }).catch(function(){ /* ignore */ });
         }
       });
+    </script>
+    <!-- Confirmation modal -->
+    <div id="confirm-modal" class="confirm-modal" aria-hidden="true" role="dialog" aria-modal="true">
+      <div class="confirm-modal-backdrop"></div>
+      <div class="confirm-modal-panel" role="document">
+        <h3 id="confirm-modal-title"></h3>
+        <p id="confirm-modal-message"></p>
+        <div class="confirm-modal-controls">
+          <button type="button" id="confirm-modal-cancel">Cancel</button>
+          <button type="button" id="confirm-modal-ok" class="danger">OK</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        var modal = document.getElementById('confirm-modal');
+        var titleEl = document.getElementById('confirm-modal-title');
+        var msgEl = document.getElementById('confirm-modal-message');
+        var okBtn = document.getElementById('confirm-modal-ok');
+        var cancelBtn = document.getElementById('confirm-modal-cancel');
+        function show(opts){
+          return new Promise(function(resolve){
+            titleEl.textContent = opts.title || 'Confirm';
+            msgEl.textContent = opts.message || '';
+            modal.setAttribute('aria-hidden','false');
+            modal.classList.add('open');
+            var cleanup = function(){
+              okBtn.removeEventListener('click', onOk);
+              cancelBtn.removeEventListener('click', onCancel);
+              document.removeEventListener('keydown', onKey);
+            };
+            function onOk(){ cleanup(); modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); resolve(true); }
+            function onCancel(){ cleanup(); modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); resolve(false); }
+            function onKey(e){ if (e.key === 'Escape') onCancel(); }
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+            document.addEventListener('keydown', onKey);
+          });
+        }
+        window.showConfirm = show;
+      })();
     </script>
     {% block scripts %}{% endblock %}
     <script>

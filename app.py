@@ -428,15 +428,19 @@ def sales():
 @login_required
 def sales_transactions():
     db = SessionLocal()
+    # For now, show recent transactions for admins and today's transaction for regular users.
     if current_user.is_admin:
         txs = db.query(Transaction).order_by(Transaction.date.desc()).limit(100).all()
+        pagination = None
     else:
         # regular users see only today's transaction (global)
         today_d = date.today()
         txs = db.query(Transaction).filter(Transaction.date == today_d).all()
+        pagination = None
     bulk_delete_form = BulkDeleteForm()
     delete_all_form = DeleteAllForm()
-    return render_template('sales_transactions.html', transactions=txs, today=date.today(), bulk_delete_form=bulk_delete_form, delete_all_form=delete_all_form)
+    upload_form = UploadTransactionsForm()
+    return render_template('sales_transactions.html', transactions=txs, today=date.today(), bulk_delete_form=bulk_delete_form, delete_all_form=delete_all_form, upload_form=upload_form, pagination=pagination)
 
 
 @app.route('/catering')
@@ -1145,6 +1149,41 @@ def cli_create_admin():
     db.add(admin)
     db.commit()
     print('Admin created')
+
+
+# Temporary development helper: create or update an admin user from the browser.
+# Only enabled when running in debug mode or when the request comes from localhost.
+@app.route('/_dev/create_admin', methods=['GET', 'POST'])
+def dev_create_admin():
+    # restrict to local/dev environments
+    remote = request.remote_addr or ''
+    if not (app.debug or remote.startswith('127.') or remote == '::1'):
+        abort(404)
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        password = (request.form.get('password') or '').strip()
+        if not username or not password:
+            return '<p>Missing username or password. <a href="">Back</a></p>'
+        db = SessionLocal()
+        existing = db.query(User).filter(User.username == username).first()
+        if existing:
+            existing.password_hash = generate_password_hash(password)
+            existing.is_admin = True
+            db.add(existing)
+            db.commit()
+            return f'<p>Updated admin <strong>{username}</strong>. <a href="{url_for("login")}">Login</a></p>'
+        else:
+            u = User.create(username=username, password=password, is_admin=True)
+            db.add(u)
+            db.commit()
+            return f'<p>Created admin <strong>{username}</strong>. <a href="{url_for("login")}">Login</a></p>'
+    # GET: simple form
+    return ('<h2>Dev: create/update admin</h2>'
+            '<form method="post">'
+            'Username: <input name="username" /><br/>'
+            'Password: <input type="password" name="password" /><br/>'
+            '<button type="submit">Create / Update admin</button>'
+            '</form>')
 
 
 

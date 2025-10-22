@@ -1,10 +1,41 @@
 {% extends 'layout.html' %}
 {% block content %}
   <h2>Sales • Transactions</h2>
+  {# admin debug banner removed - pagination is admin-only and has been reverted #}
   {% if current_user.is_admin %}
     <details class="admin-actions">
       <summary>Admin actions</summary>
       <p><a href="{{ url_for('new_transaction') }}" class="button-link">New Transaction</a></p>
+      <p>
+        <button type="button" id="top-delete-selected" class="button-link danger">Delete selected</button>
+        <button type="button" id="top-delete-all" class="button-link danger">Delete ALL</button>
+      </p>
+      {% if upload_form %}
+      <div style="margin-top:.5rem; border-top:1px dashed #e6eef8; padding-top:.5rem;">
+        <div style="display:flex; gap:.5rem; align-items:center;">
+          <form method="post" action="{{ url_for('admin_upload') }}" enctype="multipart/form-data" style="display:flex; gap:.5rem; align-items:center; margin:0;">
+            {{ upload_form.hidden_tag() }}
+            <input type="file" name="file" accept=".csv,.xlsx" />
+            <label style="display:inline-flex; align-items:center; gap:.25rem;"><input type="checkbox" name="overwrite" /> Overwrite</label>
+            <button type="submit" class="button-link">Import</button>
+          </form>
+          <a href="{{ url_for('admin_upload_template_csv') }}" class="button-link" style="white-space:nowrap;">Download template</a>
+        </div>
+        <small style="display:block; color:var(--muted); margin-top:.25rem;">Upload CSV or Excel (.csv, .xlsx) to bulk-create or update transactions. Use the template if you're unsure of headers.</small>
+      </div>
+      {% endif %}
+      <div id="admin-delete-all-panel" style="display:none; margin-top:.5rem; border-top:1px dashed #f2dede; padding-top:.5rem;">
+        <form id="delete-all-form" method="post" action="{{ url_for('admin_delete_all') }}">
+          {{ delete_all_form.hidden_tag() }}
+          <label for="confirm-delete-all" style="display:block; font-weight:600; color:#a94442;">Type DELETE ALL to confirm</label>
+          <div style="display:flex; gap:.5rem; align-items:center; margin-top:.25rem;">
+            <input id="confirm-delete-all" name="confirm" placeholder="Type DELETE ALL to confirm" style="flex:1; padding:.35rem; border:1px solid #ccc;" />
+            <button type="submit" class="button-link danger" style="white-space:nowrap;">Delete ALL</button>
+            <button type="button" id="admin-delete-all-cancel" class="button-link">Cancel</button>
+          </div>
+          <small style="color:#a94442; display:block; margin-top:.25rem;">This action will permanently remove every transaction. Audit logs will record this action.</small>
+        </form>
+      </div>
     </details>
   {% else %}
     {% if transactions and transactions|length > 0 %}
@@ -16,9 +47,17 @@
 
   {% if transactions %}
   <div class="tx-table-wrap">
+  {# Bulk delete form for admins - uses checkboxes named 'ids' so request.form.getlist('ids') works #}
+  {% if current_user.is_admin %}
+  <form id="bulk-delete-form" method="post" action="{{ url_for('admin_delete_selected') }}">
+    {{ bulk_delete_form.hidden_tag() }}
+  {% endif %}
   <table class="tx-table">
       <thead>
         <tr>
+          {% if current_user.is_admin %}
+            <th class="select"><input type="checkbox" id="select-all" aria-label="Select all" /></th>
+          {% endif %}
           <th class="date">Date</th>
           <th class="numeric">Total Cash</th>
           <th class="numeric">Gross Revenue</th>
@@ -32,6 +71,9 @@
       <tbody>
       {% for tx in transactions %}
         <tr>
+          {% if current_user.is_admin %}
+            <td class="select"><input type="checkbox" name="ids" value="{{ tx.id }}" class="tx-select" /></td>
+          {% endif %}
           <td>{{ tx.date }}</td>
           <td class="numeric">{{ '%.2f'|format(tx.total_cash or 0) }}</td>
           <td class="numeric">{{ '%.2f'|format(tx.gross_revenue or 0) }}</td>
@@ -51,8 +93,105 @@
       {% endfor %}
       </tbody>
   </table>
+  {% if current_user.is_admin %}
+    <div style="margin-top:.5rem;">
+      <button type="submit" class="button-link danger">Delete selected</button>
+    </div>
+  </form>
+  {% endif %}
   </div>
+  {# pagination removed - admin view shows recent transactions only #}
+  {% if current_user.is_admin %}
+    {# moved delete-all form into the admin actions panel above #}
+  {% endif %}
   {% else %}
     <p>No transactions found.</p>
   {% endif %}
 {% endblock %}
+
+{% if current_user.is_admin %}
+  {% block scripts %}
+    {{ super() }}
+    <script>
+      document.addEventListener('DOMContentLoaded', function(){
+        const selectAll = document.getElementById('select-all');
+        if(selectAll){
+          selectAll.addEventListener('change', function(){
+            document.querySelectorAll('.tx-select').forEach(cb=>cb.checked = selectAll.checked);
+          });
+          document.querySelectorAll('.tx-select').forEach(cb=>{
+            cb.addEventListener('change', function(){
+              const all = document.querySelectorAll('.tx-select');
+              selectAll.checked = Array.from(all).length > 0 && Array.from(all).every(c=>c.checked);
+            });
+          });
+        }
+        const bulkForm = document.getElementById('bulk-delete-form');
+        if(bulkForm){
+          bulkForm.addEventListener('submit', function(e){
+            e.preventDefault();
+            const checked = document.querySelectorAll('.tx-select:checked');
+            if(checked.length === 0){
+              alert('No transactions selected.');
+              return;
+            }
+            var confirmMsg = 'Delete ' + checked.length + ' selected transactions? This cannot be undone.';
+            if(window.showConfirm){
+              window.showConfirm({ title: 'Delete selected', message: confirmMsg }).then(function(yes){ if(yes) bulkForm.submit(); }).catch(function(){});
+            } else {
+              if(confirm(confirmMsg)) bulkForm.submit();
+            }
+          });
+        }
+        const deleteAllForm = document.getElementById('delete-all-form');
+        if(deleteAllForm){
+          deleteAllForm.addEventListener('submit', function(e){
+            e.preventDefault();
+            const v = (document.getElementById('confirm-delete-all').value || '').trim();
+            if(v !== 'DELETE ALL'){
+              alert("Type 'DELETE ALL' exactly to confirm deletion of ALL transactions.");
+              return;
+            }
+            var confirmMsg = 'This will permanently delete ALL transactions. Are you sure?';
+            if(window.showConfirm){
+              window.showConfirm({ title: 'Delete ALL transactions', message: confirmMsg }).then(function(yes){ if(yes) deleteAllForm.submit(); }).catch(function(){});
+            } else {
+              if(confirm(confirmMsg)) deleteAllForm.submit();
+            }
+          });
+        }
+        // Top action buttons
+        var topDeleteSelected = document.getElementById('top-delete-selected');
+        if(topDeleteSelected){
+          topDeleteSelected.addEventListener('click', function(){
+            // scroll to table and focus first checkbox if present
+            var first = document.querySelector('.tx-select');
+            if(first) first.scrollIntoView({behavior:'smooth', block:'center'});
+            // trigger the same submit flow as bulkForm
+            var bf = document.getElementById('bulk-delete-form');
+            if(bf) bf.dispatchEvent(new Event('submit', { cancelable: true }));
+          });
+        }
+        var topDeleteAll = document.getElementById('top-delete-all');
+        if(topDeleteAll){
+          topDeleteAll.addEventListener('click', function(){
+            var panel = document.getElementById('admin-delete-all-panel');
+            if(panel){
+              panel.style.display = panel.style.display === 'none' || panel.style.display === '' ? 'block' : 'none';
+              var el = document.getElementById('confirm-delete-all');
+              if(el){ el.scrollIntoView({behavior:'smooth', block:'center'}); el.focus(); }
+            }
+          });
+        }
+        var adminDeleteCancel = document.getElementById('admin-delete-all-cancel');
+        if(adminDeleteCancel){
+          adminDeleteCancel.addEventListener('click', function(){
+            var panel = document.getElementById('admin-delete-all-panel');
+            if(panel) panel.style.display = 'none';
+          });
+        }
+      });
+      
+    </script>
+  {% endblock %}
+{% endif %}
