@@ -414,6 +414,54 @@ def index():
                 key = f"{yy:04d}"
                 yearly_labels.append(key)
                 yearly_values.append(round(year_map.get(key, 0.0), 2))
+            # GROSS revenue series (daily/weekly/monthly/yearly)
+            gross_daily_values = [0.0] * len(daily_values)
+            for i in range(len(daily_labels)):
+                # map/date lookup already computed in daily_map for net; recompute gross map
+                pass
+            rows_gross_daily = (
+                db.query(Transaction.date, func.sum(Transaction.gross_revenue))
+                .filter(Transaction.date >= d_start)
+                .group_by(Transaction.date)
+                .order_by(Transaction.date)
+                .all()
+            )
+            gross_daily_map = {r[0]: float(r[1] or 0.0) for r in rows_gross_daily}
+            gross_daily_values = [round(gross_daily_map.get(d_start + timedelta(days=i), 0.0), 2) for i in range(14)]
+
+            # gross weekly
+            gross_week_map = {}
+            rows_gross_week = (
+                db.query(Transaction.date, Transaction.gross_revenue)
+                .filter(Transaction.date >= w_start - timedelta(days=6))
+                .all()
+            )
+            for d, val in rows_gross_week:
+                wk_start = d - timedelta(days=d.weekday())
+                gross_week_map[wk_start] = gross_week_map.get(wk_start, 0.0) + float(val or 0.0)
+            gross_weekly_values = [round(gross_week_map.get((w_start - timedelta(days=w_start.weekday())) + timedelta(weeks=i), 0.0), 2) for i in range(8)]
+
+            # gross monthly
+            rows_gross_month = (
+                db.query(func.strftime('%Y-%m', Transaction.date), func.sum(Transaction.gross_revenue))
+                .filter(Transaction.date >= from_month_start)
+                .group_by(func.strftime('%Y-%m', Transaction.date))
+                .order_by(func.strftime('%Y-%m', Transaction.date))
+                .all()
+            )
+            gross_month_map = {k: float(v or 0.0) for (k, v) in rows_gross_month}
+            gross_monthly_values = [round(gross_month_map.get(f"{yy:04d}-{mm:02d}", 0.0), 2) for (yy, mm) in months]
+
+            # gross yearly
+            rows_gross_year = (
+                db.query(func.strftime('%Y', Transaction.date), func.sum(Transaction.gross_revenue))
+                .filter(func.strftime('%Y', Transaction.date) >= str(y_start))
+                .group_by(func.strftime('%Y', Transaction.date))
+                .order_by(func.strftime('%Y', Transaction.date))
+                .all()
+            )
+            gross_year_map = {k: float(v or 0.0) for (k, v) in rows_gross_year}
+            gross_yearly_values = [round(gross_year_map.get(f"{yy:04d}", 0.0), 2) for yy in range(y_start, today_d.year + 1)]
         except Exception:
             # On any failure, gracefully degrade to empty series
             daily_labels, daily_values = [], []
@@ -424,12 +472,19 @@ def index():
             'weekly': {'labels': weekly_labels, 'values': weekly_values},
             'monthly': {'labels': monthly_labels, 'values': monthly_values},
             'yearly': {'labels': yearly_labels, 'values': yearly_values},
+            'gross': {
+                'daily': {'labels': daily_labels, 'values': gross_daily_values},
+                'weekly': {'labels': weekly_labels, 'values': gross_weekly_values},
+                'monthly': {'labels': monthly_labels, 'values': gross_monthly_values},
+                'yearly': {'labels': yearly_labels, 'values': gross_yearly_values},
+            },
         }
     else:
         # unreachable because non-admins are redirected above
         today = date.today()
         txs = db.query(Transaction).filter(Transaction.date == today).all()
         charts = None
+    
     # pass today's date so template can decide whether regular users may edit
     return render_template('index.html', transactions=txs, today=date.today(), charts=charts)
 
@@ -532,6 +587,9 @@ def logout():
     logout_user()
     flash('Logged out', 'info')
     return redirect(url_for('login'))
+
+
+ 
 
 
 def can_edit_tx(tx: Transaction):

@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+
 {% block content %}
   <h2>Dashboard</h2>
   {% if current_user.is_admin %}
@@ -23,194 +24,88 @@
 
 {% block scripts %}
   {% if current_user.is_admin and charts %}
-  <script id="charts-data" type="application/json">{{ charts|tojson|safe }}</script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-  <script>
-    (function(){
-      if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
-        Chart.register(ChartDataLabels);
-      }
-      const currencyFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+    <script id="charts-data" type="application/json">{{ charts|tojson|safe }}</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script>
+      (function(){
+        if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+          Chart.register(ChartDataLabels);
+        }
+        const currencyFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+        const mqDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+        function theme() {
+          const manual = document.documentElement.getAttribute('data-theme');
+          const dark = manual ? (manual === 'dark') : (mqDark && mqDark.matches);
+          return dark ? { text: '#e5e7eb', grid: 'rgba(229,231,235,0.2)', barBg: 'rgba(56,189,248,0.55)', barBorder: 'rgba(56,189,248,1)', dataLabel: '#e5e7eb', tooltipBg: 'rgba(31,41,55,0.95)', tooltipText: '#f9fafb' } : { text: '#111827', grid: 'rgba(0,0,0,0.1)', barBg: 'rgba(14,165,233,0.4)', barBorder: 'rgba(14,165,233,1)', dataLabel: '#111827', tooltipBg: 'rgba(0,0,0,0.85)', tooltipText: '#ffffff' };
+        }
 
-      const mqDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
-      function theme() {
-        const manual = document.documentElement.getAttribute('data-theme');
-        const dark = manual ? (manual === 'dark') : (mqDark && mqDark.matches);
-        return dark ? {
-          text: '#e5e7eb',
-          grid: 'rgba(229,231,235,0.2)',
-          barBg: 'rgba(56,189,248,0.55)',
-          barBorder: 'rgba(56,189,248,1)',
-          dataLabel: '#e5e7eb',
-          tooltipBg: 'rgba(31,41,55,0.95)',
-          tooltipText: '#f9fafb'
-        } : {
-          text: '#111827',
-          grid: 'rgba(0,0,0,0.1)',
-          barBg: 'rgba(14,165,233,0.4)',
-          barBorder: 'rgba(14,165,233,1)',
-          dataLabel: '#111827',
-          tooltipBg: 'rgba(0,0,0,0.85)',
-          tooltipText: '#ffffff'
-        };
-      }
-
-  let chartInstances = [];
-
-      function makeChart(ctx, labels, values, label){
-        const th = theme();
-        return new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [{
-              label: label,
-              data: values,
-              backgroundColor: th.barBg,
-              borderColor: th.barBorder,
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { display: true, position: 'top', labels: { color: th.text } },
-              tooltip: {
-                enabled: true,
-                backgroundColor: th.tooltipBg,
-                titleColor: th.tooltipText,
-                bodyColor: th.tooltipText,
-                callbacks: {
-                  title: (items) => (items && items.length ? items[0].label : ''),
-                  label: (context) => {
-                    const v = typeof context.parsed === 'object' ? context.parsed.y : context.parsed;
-                    return `${context.dataset.label}: ${currencyFmt.format(v ?? 0)}`;
-                  }
-                }
+        function makeChart(ctx, labels, values, label){
+          const th = theme();
+          return new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ label: label, data: values, backgroundColor: th.barBg, borderColor: th.barBorder, borderWidth: 1 }] },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { display: true, position: 'top', labels: { color: th.text } },
+                tooltip: { enabled: true, backgroundColor: th.tooltipBg, titleColor: th.tooltipText, bodyColor: th.tooltipText, callbacks: { title: (items) => (items && items.length ? items[0].label : ''), label: (context) => { const v = typeof context.parsed === 'object' ? context.parsed.y : context.parsed; return `${context.dataset.label}: ${currencyFmt.format(v ?? 0)}`; } } },
+                datalabels: { anchor: 'end', align: 'top', offset: 4, clamp: true, color: function(){ return theme().dataLabel; }, font: { weight: '600', size: 11 }, formatter: (v) => currencyFmt.format(typeof v === 'number' ? v : (v?.y ?? 0)) }
               },
-              datalabels: {
-                anchor: 'end',
-                align: 'top',
-                offset: 4,
-                clamp: true,
-                // Dynamic color so it adapts even without full rebuild
-                color: function(){ return theme().dataLabel; },
-                font: { weight: '600', size: 11 },
-                formatter: (v) => currencyFmt.format(typeof v === 'number' ? v : (v?.y ?? 0))
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                title: { display: true, text: 'Amount (USD)', color: th.text },
-                ticks: {
-                  color: th.text,
-                  callback: (val) => currencyFmt.format(val)
-                },
-                grid: { color: th.grid }
-              },
-              x: {
-                ticks: { autoSkip: true, maxRotation: 0, color: th.text },
-                grid: { color: th.grid }
-              }
+              scales: { y: { beginAtZero: true, title: { display: true, text: 'Amount (USD)', color: th.text }, ticks: { color: th.text, callback: (val) => currencyFmt.format(val) }, grid: { color: th.grid } }, x: { ticks: { autoSkip: true, maxRotation: 0, color: th.text }, grid: { color: th.grid } } }
             }
-          }
-        });
-      }
+          });
+        }
 
-      function buildAllCharts(charts){
-        if (!charts) return;
-        const dailyEl = document.getElementById('chartDaily');
-        const weeklyEl = document.getElementById('chartWeekly');
-        const monthlyEl = document.getElementById('chartMonthly');
-  const yearlyEl = document.getElementById('chartYearly');
-        if (charts.daily && dailyEl){ chartInstances.push(makeChart(dailyEl, charts.daily.labels, charts.daily.values, 'Daily Net Revenue')); }
-        if (charts.weekly && weeklyEl){ chartInstances.push(makeChart(weeklyEl, charts.weekly.labels, charts.weekly.values, 'Weekly Net Revenue')); }
-        if (charts.monthly && monthlyEl){ chartInstances.push(makeChart(monthlyEl, charts.monthly.labels, charts.monthly.values, 'Monthly Net Revenue')); }
-  if (charts.yearly && yearlyEl){ chartInstances.push(makeChart(yearlyEl, charts.yearly.labels, charts.yearly.values, 'Yearly Net Revenue')); }
-      }
+        let chartInstances = [];
+        function buildAllCharts(charts){
+          if (!charts) return;
+          const dailyEl = document.getElementById('chartDaily');
+          const weeklyEl = document.getElementById('chartWeekly');
+          const monthlyEl = document.getElementById('chartMonthly');
+          const yearlyEl = document.getElementById('chartYearly');
+          if (charts.daily && dailyEl){ chartInstances.push(makeChart(dailyEl, charts.daily.labels, charts.daily.values, 'Daily Net Revenue')); }
+          if (charts.weekly && weeklyEl){ chartInstances.push(makeChart(weeklyEl, charts.weekly.labels, charts.weekly.values, 'Weekly Net Revenue')); }
+          if (charts.monthly && monthlyEl){ chartInstances.push(makeChart(monthlyEl, charts.monthly.labels, charts.monthly.values, 'Monthly Net Revenue')); }
+          if (charts.yearly && yearlyEl){ chartInstances.push(makeChart(yearlyEl, charts.yearly.labels, charts.yearly.values, 'Yearly Net Revenue')); }
+        }
 
-      function rethemeAllCharts(){
-        const th = theme();
-        if (!chartInstances.length){ buildAllCharts(charts); return; }
-        chartInstances.forEach(function(ch){
-          // Update dataset colors (assume 1 dataset as configured)
-          if (ch.data && ch.data.datasets && ch.data.datasets[0]){
-            ch.data.datasets[0].backgroundColor = th.barBg;
-            ch.data.datasets[0].borderColor = th.barBorder;
-          }
-          // Update axes and plugins colors
-          if (ch.options){
-            ch.options.plugins = ch.options.plugins || {};
-            const plugs = ch.options.plugins;
-            plugs.legend = plugs.legend || {};
-            plugs.legend.labels = Object.assign(plugs.legend.labels || {}, { color: th.text });
-            plugs.tooltip = Object.assign(plugs.tooltip || {}, {
-              backgroundColor: th.tooltipBg,
-              titleColor: th.tooltipText,
-              bodyColor: th.tooltipText
-            });
-            plugs.datalabels = Object.assign(plugs.datalabels || {}, { color: th.dataLabel });
-            if (ch.options.scales){
-              if (ch.options.scales.x){
-                ch.options.scales.x.ticks = Object.assign(ch.options.scales.x.ticks || {}, { color: th.text });
-                ch.options.scales.x.grid = Object.assign(ch.options.scales.x.grid || {}, { color: th.grid });
-              }
-              if (ch.options.scales.y){
-                ch.options.scales.y.ticks = Object.assign(ch.options.scales.y.ticks || {}, { color: th.text });
-                ch.options.scales.y.title = Object.assign(ch.options.scales.y.title || {}, { color: th.text });
-                ch.options.scales.y.grid = Object.assign(ch.options.scales.y.grid || {}, { color: th.grid });
-              }
-            }
-          }
-          try { ch.update('none'); } catch(e) {}
-        });
-      }
-
-      var el = document.getElementById('charts-data');
-      var charts = el ? JSON.parse(el.textContent) : null;
-      buildAllCharts(charts);
-
-      let rebuildTimer = null;
-      function doRebuild(){
-        try { chartInstances.forEach(ch => { try { ch.destroy(); } catch(_){} }); } finally { chartInstances = []; }
+        var el = document.getElementById('charts-data');
+        var charts = el ? JSON.parse(el.textContent) : null;
         buildAllCharts(charts);
-      }
-      function rebuild(){
-        // Debounce and allow CSS swap to settle before rebuilding
-        if (rebuildTimer) { clearTimeout(rebuildTimer); }
-        rebuildTimer = setTimeout(doRebuild, 80);
-      }
 
-      if (mqDark){
-        const onThemeChange = function(){
-          rebuild();
-        };
-        if (typeof mqDark.addEventListener === 'function'){
-          mqDark.addEventListener('change', onThemeChange);
-        } else if (typeof mqDark.addListener === 'function') {
-          // Safari/older browsers
-          mqDark.addListener(onThemeChange);
+        // re-theme handling
+        if (mqDark){
+          const onThemeChange = function(){
+            // rebuild charts on theme change
+            for (const c of chartInstances){ try { c.destroy(); } catch(_){} }
+            chartInstances = [];
+            buildAllCharts(charts);
+          };
+          if (typeof mqDark.addEventListener === 'function'){
+            mqDark.addEventListener('change', onThemeChange);
+          } else if (typeof mqDark.addListener === 'function') {
+            mqDark.addListener(onThemeChange);
+          }
         }
-      }
 
-  // Respond to manual theme toggle (layout dispatches 'themechange')
-  function onThemeEvt(){ rebuild(); }
-  window.addEventListener('themechange', onThemeEvt);
-  document.addEventListener('themechange', onThemeEvt);
-  try {
-    const mo = new MutationObserver(function(muts){
-      for (const m of muts){
-        if (m.type === 'attributes' && m.attributeName === 'data-theme'){
-          rebuild();
-          break;
-        }
-      }
-    });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  } catch(_){ }
-    })();
-  </script>
+        // Respond to manual theme toggle (layout dispatches 'themechange')
+        function onThemeEvt(){ for (const c of chartInstances){ try { c.destroy(); } catch(_){} } chartInstances = []; buildAllCharts(charts); }
+        window.addEventListener('themechange', onThemeEvt);
+        document.addEventListener('themechange', onThemeEvt);
+        try {
+          const mo = new MutationObserver(function(muts){
+            for (const m of muts){
+              if (m.type === 'attributes' && m.attributeName === 'data-theme'){
+                onThemeEvt();
+                break;
+              }
+            }
+          });
+          mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        } catch(_){ }
+      })();
+    </script>
   {% endif %}
 {% endblock %}
+                    });

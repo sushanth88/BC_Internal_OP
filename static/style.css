@@ -5,49 +5,50 @@
 	--muted: #374151;
 	--link: #0366d6;
 	--border: #e5e7eb;
+	--fg: var(--text);
 	color-scheme: light dark;
 	--font-sans: 'SF Pro Text', -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 }
 
+/* Default dark-mode variable set when OS preference is dark */
 @media (prefers-color-scheme: dark) {
 	:root {
 		--bg: #0b1220;
 		--text: #e5e7eb;
-		--muted: #cbd5e1;
-		--link: #7cc0ff;
-		--border: #334155;
+		--muted: #9ca3af;
+		--link: #60a5fa;
+		--border: rgba(255,255,255,0.06);
+		--fg: var(--text);
 	}
 }
 
-[data-theme="light"] {
-	--bg: #ffffff;
-	--text: #111827;
-	--muted: #374151;
-	--link: #0366d6;
-	--border: #e5e7eb;
-	color-scheme: light;
-}
-
+/* Manual dark theme toggle via data-theme attribute */
 [data-theme="dark"] {
 	--bg: #0b1220;
 	--text: #e5e7eb;
-	--muted: #cbd5e1;
-	--link: #7cc0ff;
-	--border: #334155;
-	color-scheme: dark;
+	--muted: #9ca3af;
+	--link: #60a5fa;
+	--border: rgba(255,255,255,0.06);
+	--fg: var(--text);
+}
+/* Ensure headings and chart section titles follow theme in dark and during auto-prefers */
+@media (prefers-color-scheme: dark) {
+	h1, h2, h3, h4, h5, h6, .site-title, .charts h3, .chart-card h3, .login-title {
+		color: var(--text) !important;
+	}
 }
 
-body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; background: var(--bg) !important; color: var(--text) !important; }
-.nav, .nav a, table, th, td, input, select, textarea, button { font-family: var(--font-sans); }
-.nav a { margin: 0 8px; text-decoration: none; color: var(--text) }
-.nav a:visited { color: var(--text); }
-.nav a:hover { color: var(--link); }
-.nav a.active { font-weight: 600; text-decoration: underline; color: var(--text); }
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+[data-theme="dark"] .site-title, [data-theme="dark"] .charts h3, [data-theme="dark"] .chart-card h3, [data-theme="dark"] .login-title {
+	color: var(--text) !important;
+}
 .header-summary { font-size: 0.95rem; color: var(--muted); margin-left: 12px }
 header h1 { margin: 0; }
-/* Ensure headings follow theme text color */
-h1, h2, h3, h4, h5, h6 { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
-header .site-title { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
+/* Ensure headings follow theme text color and override third-party styles when needed */
+html, body { background: var(--bg); color: var(--text); }
+header h1, header h2, header h3, header h4, header h5, header h6,
+h1, h2, h3, h4, h5, h6 { color: var(--text) !important; font-family: var(--font-sans); letter-spacing: -0.01em; }
+.site-title { color: var(--text) !important; font-family: var(--font-sans); letter-spacing: -0.01em; }
 /* Brand row: logo + title inline */
 .brand-row { position: relative; display:flex; align-items:center; justify-content:center; padding-right: 80px; gap: 12px; margin-bottom: 14px; }
 .brand-row .site-title { margin: 0; font-size: 1.8rem; line-height: 1.2; }
@@ -240,10 +241,48 @@ body[data-page="login"] input[type="password"] {
 
 /* Ensure vertical scrolling is available and charts aren't clipped */
 html, body {
-	height: auto;
-	min-height: 100%;
-	overflow-x: hidden;
-	overflow-y: auto;
+		height: auto;
+		min-height: 100%;
+		overflow-x: hidden;
+		overflow-y: auto;
 }
 main { overflow: visible; }
 .charts { display: block; padding-bottom: 32px; }
+
+.charts-controls {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
+}
+.charts-controls label { font-size: 0.95rem; color: var(--muted); }
+.charts-controls select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); }
+
+/* Charts grid: give charts breathing room and allow 2 columns on wide screens */
+.charts-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 16px 18px;
+}
+
+.chart-card {
+	background: color-mix(in srgb, var(--bg) 98%, transparent);
+	padding: 10px 12px;
+	border-radius: 6px;
+	box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+}
+
+.chart-card h3 { margin: 0 0 8px; font-size: 0.98rem; }
+.chart-card canvas { width: 100% !important; height: auto !important; }
+
+/* On wider screens use 2 columns, but keep charts comfortable */
+@media (min-width: 1100px) {
+	.charts-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Utility: when applied, hide datalabels to reduce clutter for long series */
+/* Note: To hide datalabels for dense series, JS will toggle classes and Chart options at runtime. */
+
+/* Dashboard two-column layout: charts on left, controls on right */
+/* dashboard styles removed to restore original centered charts layout */
