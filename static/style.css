@@ -237,3 +237,13 @@ body[data-page="login"] input[type="password"] {
 .user-pill .user-logout { color: var(--link); text-decoration: none; margin-left: 8px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; }
 .user-pill .user-logout svg { display: block; width: 16px; height: 16px; color: var(--muted); }
 .user-pill .user-logout:hover svg { color: var(--link); }
+
+/* Ensure vertical scrolling is available and charts aren't clipped */
+html, body {
+	height: auto;
+	min-height: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+main { overflow: visible; }
+.charts { display: block; padding-bottom: 32px; }
