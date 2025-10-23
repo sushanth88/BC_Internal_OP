@@ -48,7 +48,8 @@ header h1 { margin: 0; }
 /* Ensure headings follow theme text color */
 h1, h2, h3, h4, h5, h6 { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
 header .site-title { color: var(--text); font-family: var(--font-sans); letter-spacing: -0.01em; }
-.brand-row { position: relative; display:flex; align-items:center; justify-content:space-between; padding: 8px 20px; gap: 12px; margin-bottom: 14px; }
+/* Brand row: logo + title inline */
+.brand-row { position: relative; display:flex; align-items:center; justify-content:center; padding-right: 80px; gap: 12px; margin-bottom: 14px; }
 .brand-row .site-title { margin: 0; font-size: 1.8rem; line-height: 1.2; }
 .brand-left { display:flex; align-items:center; gap:12px; }
 table { border-collapse: collapse; width: 100%; }
@@ -73,7 +74,7 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 .tx-table td.numeric { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace; }
 .tx-table td.actions, .tx-table th.actions { text-align: center; white-space: nowrap; }
 .tx-table tr:hover td { background: color-mix(in srgb, var(--link) 6%, transparent); }
-.container { max-width: none; width: 100%; padding: 12px 20px; margin: 12px 0; box-sizing: border-box; }
+.container { max-width: 960px; margin: 24px auto; }
 .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; }
 /* align inner sections (nav vs user) with consistent spacing */
 .topbar > div { display: flex; align-items: center; gap: 12px; }

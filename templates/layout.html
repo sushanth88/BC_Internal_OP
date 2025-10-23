@@ -77,53 +77,49 @@
     {% set is_login = (request.endpoint == 'login') %}
     {% if not is_login %}
     <header>
-      <div class="container">
-        <div class="brand-row">
-          <div class="brand-left">
-            <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="site-logo" />
-            <h1 class="site-title">Biryani City Portal</h1>
-          </div>
-          <div class="theme-toggle" role="group" aria-label="Theme">
-            <button type="button" class="theme-btn" data-mode="auto" aria-pressed="false" title="Auto (system)">🖥️</button>
-            <button type="button" class="theme-btn" data-mode="light" aria-pressed="false" title="Light">☀️</button>
-            <button type="button" class="theme-btn" data-mode="dark" aria-pressed="false" title="Dark">🌙</button>
-          </div>
+      <div class="brand-row">
+        <div class="brand-left">
+          <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="site-logo" />
+          <h1 class="site-title">Biryani City Portal</h1>
         </div>
-        {% include '_nav.html' %}
-        {% if current_user.is_authenticated and not current_user.is_admin %}
-          {# show quick summary for regular users whether today's transaction exists #}
-          <div class="header-summary">
-            {% set today_tx = namespace(found=False, id=None) %}
-            {% for tx in (transactions or []) %}
-              {% if tx.date == (today or None) %}
-                {% set today_tx.found = True %}
-                {% set today_tx.id = tx.id %}
-              {% endif %}
-            {% endfor %}
-            {% if today_tx.found %}
-              Today's transaction exists — <a href="{{ url_for('edit_transaction', tx_id=today_tx.id) }}">Edit</a>
-            {% else %}
-              No transaction for today — <a href="{{ url_for('new_transaction') }}">Add now</a>
-            {% endif %}
-          </div>
-        {% endif %}
-      <hr style="margin: 10px 0 18px; opacity:.8;" />
+        <div class="theme-toggle" role="group" aria-label="Theme">
+          <button type="button" class="theme-btn" data-mode="auto" aria-pressed="false" title="Auto (system)">🖥️</button>
+          <button type="button" class="theme-btn" data-mode="light" aria-pressed="false" title="Light">☀️</button>
+          <button type="button" class="theme-btn" data-mode="dark" aria-pressed="false" title="Dark">🌙</button>
+        </div>
       </div>
+      {% include '_nav.html' %}
+      {% if current_user.is_authenticated and not current_user.is_admin %}
+        {# show quick summary for regular users whether today's transaction exists #}
+        <div class="header-summary">
+          {% set today_tx = namespace(found=False, id=None) %}
+          {% for tx in (transactions or []) %}
+            {% if tx.date == (today or None) %}
+              {% set today_tx.found = True %}
+              {% set today_tx.id = tx.id %}
+            {% endif %}
+          {% endfor %}
+          {% if today_tx.found %}
+            Today's transaction exists — <a href="{{ url_for('edit_transaction', tx_id=today_tx.id) }}">Edit</a>
+          {% else %}
+            No transaction for today — <a href="{{ url_for('new_transaction') }}">Add now</a>
+          {% endif %}
+        </div>
+      {% endif %}
+  <hr style="margin: 10px 0 18px; opacity:.8;" />
     </header>
     {% endif %}
     <main>
-      <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <ul>
-            {% for category, msg in messages %}
-              <li><strong>[{{ category }}]</strong> {{ msg }}</li>
-            {% endfor %}
-            </ul>
-          {% endif %}
-        {% endwith %}
-        {% block content %}{% endblock %}
-      </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul>
+          {% for category, msg in messages %}
+            <li><strong>[{{ category }}]</strong> {{ msg }}</li>
+          {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
     </main>
     <script>
       (function(){
