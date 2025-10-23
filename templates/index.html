@@ -10,6 +10,8 @@
         <canvas id="chartWeekly" height="120"></canvas>
         <h3>Monthly Net Revenue (last 12 months)</h3>
         <canvas id="chartMonthly" height="120"></canvas>
+        <h3>Yearly Net Revenue (last 5 years)</h3>
+        <canvas id="chartYearly" height="120"></canvas>
       </div>
     {% else %}
       <p>No chart data yet.</p>
@@ -122,9 +124,11 @@
         const dailyEl = document.getElementById('chartDaily');
         const weeklyEl = document.getElementById('chartWeekly');
         const monthlyEl = document.getElementById('chartMonthly');
+  const yearlyEl = document.getElementById('chartYearly');
         if (charts.daily && dailyEl){ chartInstances.push(makeChart(dailyEl, charts.daily.labels, charts.daily.values, 'Daily Net Revenue')); }
         if (charts.weekly && weeklyEl){ chartInstances.push(makeChart(weeklyEl, charts.weekly.labels, charts.weekly.values, 'Weekly Net Revenue')); }
         if (charts.monthly && monthlyEl){ chartInstances.push(makeChart(monthlyEl, charts.monthly.labels, charts.monthly.values, 'Monthly Net Revenue')); }
+  if (charts.yearly && yearlyEl){ chartInstances.push(makeChart(yearlyEl, charts.yearly.labels, charts.yearly.values, 'Yearly Net Revenue')); }
       }
 
       function rethemeAllCharts(){

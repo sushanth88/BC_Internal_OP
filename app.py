@@ -398,6 +398,22 @@ def index():
                 key = f"{yy:04d}-{mm:02d}"
                 monthly_labels.append(f"{yy}-{mm:02d}")
                 monthly_values.append(round(month_map.get(key, 0.0), 2))
+            # YEARLY: last 5 years grouped by year
+            y_start = today_d.year - 4
+            rows_year = (
+                db.query(func.strftime('%Y', Transaction.date), func.sum(Transaction.net_revenue))
+                .filter(func.strftime('%Y', Transaction.date) >= str(y_start))
+                .group_by(func.strftime('%Y', Transaction.date))
+                .order_by(func.strftime('%Y', Transaction.date))
+                .all()
+            )
+            year_map = {k: float(v or 0.0) for (k, v) in rows_year}
+            yearly_labels = []
+            yearly_values = []
+            for yy in range(y_start, today_d.year + 1):
+                key = f"{yy:04d}"
+                yearly_labels.append(key)
+                yearly_values.append(round(year_map.get(key, 0.0), 2))
         except Exception:
             # On any failure, gracefully degrade to empty series
             daily_labels, daily_values = [], []
@@ -407,6 +423,7 @@ def index():
             'daily': {'labels': daily_labels, 'values': daily_values},
             'weekly': {'labels': weekly_labels, 'values': weekly_values},
             'monthly': {'labels': monthly_labels, 'values': monthly_values},
+            'yearly': {'labels': yearly_labels, 'values': yearly_values},
         }
     else:
         # unreachable because non-admins are redirected above
