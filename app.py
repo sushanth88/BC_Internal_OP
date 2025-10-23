@@ -958,6 +958,13 @@ def admin_upload():
                 flash('Unsupported file type. Upload a .csv or .xlsx file.', 'danger')
                 return render_template('admin_upload.html', form=form)
         except Exception as e:
+            # Log full traceback for easier debugging in server logs
+            try:
+                import traceback
+                app.logger.error('Upload read error: %s', e)
+                traceback.print_exc()
+            except Exception:
+                pass
             flash(f'Failed to read file: {e}', 'danger')
             return render_template('admin_upload.html', form=form)
 
