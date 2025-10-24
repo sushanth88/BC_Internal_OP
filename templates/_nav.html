@@ -31,8 +31,16 @@
       {% if current_user.is_authenticated %}
         {# Catering moved into Sales submenu above #}
         {% if current_user.is_admin %}
-          <a href="{{ url_for('audit_logs') }}" class="{% if request.path.startswith(url_for('audit_logs')) %}active{% endif %}">Audit</a>
-            {# Upload moved into Admin actions on Transactions page. #}
+          <div class="has-submenu nav-item">
+            <a href="{{ url_for('admin_upload') }}"
+               class="{% if request.path.startswith('/admin') %}active{% endif %} parent"
+               aria-haspopup="true" aria-expanded="false">Administration ▾</a>
+            <div class="submenu" role="menu" aria-label="Administration subpages">
+              <a href="{{ url_for('admin_upload') }}" role="menuitem" class="{% if request.path == url_for('admin_upload') %}active{% endif %}">Upload</a>
+              <a href="{{ url_for('admin_upload_template_csv') }}" role="menuitem" class="{% if request.path == url_for('admin_upload_template_csv') %}active{% endif %}">Upload Template</a>
+              <a href="{{ url_for('audit_logs') }}" role="menuitem" class="{% if request.path == url_for('audit_logs') %}active{% endif %}">Audit Logs</a>
+            </div>
+          </div>
         {% endif %}
       {% endif %}
     </nav>
