@@ -124,6 +124,20 @@ class AuditLog(Base):
     actor = relationship('User', foreign_keys=[actor_id])
 
 
+class RestaurantExpense(Base):
+    __tablename__ = 'restaurant_expenses'
+    id = Column(Integer, primary_key=True)
+    date = Column(Date, nullable=False)
+    category = Column(String(100), default='')
+    vendor = Column(String(200), default='')
+    description = Column(Text, default='')
+    amount = Column(Float, default=0.0)
+    payment_method = Column(String(50), default='')
+    invoice_number = Column(String(100), default='')
+    notes = Column(Text, default='')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 @login_manager.user_loader
 def load_user(user_id):
     db = SessionLocal()
@@ -197,6 +211,27 @@ class BulkDeleteForm(FlaskForm):
 class DeleteAllForm(FlaskForm):
     confirm = StringField('Type DELETE ALL to confirm', default='')
     submit = SubmitField('Delete ALL')
+
+
+class RestaurantExpenseForm(FlaskForm):
+    date = DateField('Date', validators=[DataRequired()], default=date.today())
+    category = StringField('Category', default='')
+    vendor = StringField('Vendor', default='')
+    description = TextAreaField('Description', default='')
+    amount = FloatField('Amount', default=0.0, validators=[DataRequired()])
+    payment_method = StringField('Payment Method', default='')
+    invoice_number = StringField('Invoice #', default='')
+    notes = TextAreaField('Notes', default='')
+    submit = SubmitField('Add Expense')
+
+
+class RestaurantExpenseUploadForm(FlaskForm):
+    file = UploadFileField('Upload CSV or Excel (.csv, .xlsx)', validators=[
+        FileRequired(),
+        FileAllowed(['csv', 'xlsx'], 'CSV or Excel files only')
+    ])
+    overwrite = BooleanField('Overwrite existing rows with same Invoice #')
+    submit = SubmitField('Import')
 
 
 def init_db():
@@ -549,13 +584,197 @@ def expenses_salaries():
     return render_template('expenses_salaries.html')
 
 
-@app.route('/expenses/restaurant')
+@app.route('/expenses/restaurant', methods=['GET', 'POST'])
 @login_required
 def expenses_restaurant():
     if not current_user.is_admin:
         flash('You do not have access to Expenses.', 'warning')
         return redirect(url_for('sales'))
-    return render_template('expenses_restaurant.html')
+    db = SessionLocal()
+    form = RestaurantExpenseForm()
+    upload_form = RestaurantExpenseUploadForm()
+
+    # Manual add
+    if form.validate_on_submit() and request.method == 'POST' and request.form.get('form-id') == 'manual':
+        exp = RestaurantExpense(
+            date=form.date.data,
+            category=form.category.data.strip(),
+            vendor=form.vendor.data.strip(),
+            description=form.description.data.strip(),
+            amount=float(form.amount.data or 0.0),
+            payment_method=form.payment_method.data.strip(),
+            invoice_number=form.invoice_number.data.strip(),
+            notes=form.notes.data.strip(),
+        )
+        db.add(exp)
+        db.commit()
+        flash('Expense added', 'success')
+        return redirect(url_for('expenses_restaurant'))
+
+    # Filters (simple): month/year
+    q = db.query(RestaurantExpense).order_by(RestaurantExpense.date.desc(), RestaurantExpense.id.desc())
+    start = request.args.get('start')
+    end = request.args.get('end')
+    category = request.args.get('category', '').strip()
+    if start:
+        try:
+            q = q.filter(RestaurantExpense.date >= _parse_date(start))
+        except Exception:
+            pass
+    if end:
+        try:
+            q = q.filter(RestaurantExpense.date <= _parse_date(end))
+        except Exception:
+            pass
+    if category:
+        q = q.filter(RestaurantExpense.category.ilike(f"%{category}%"))
+
+    expenses_rows = q.limit(500).all()
+    total_amount = sum(float(x.amount or 0.0) for x in expenses_rows)
+
+    return render_template('expenses_restaurant.html', form=form, upload_form=upload_form, expenses=expenses_rows, total_amount=total_amount, start=start or '', end=end or '', category=category)
+
+
+@app.route('/expenses/restaurant/upload', methods=['POST'])
+@login_required
+def expenses_restaurant_upload():
+    if not current_user.is_admin:
+        flash('You do not have access to Expenses.', 'warning')
+        return redirect(url_for('sales'))
+    form = RestaurantExpenseUploadForm()
+    if not form.validate_on_submit():
+        for field, errs in form.errors.items():
+            for e in errs:
+                flash(f"{field}: {e}", 'danger')
+        return redirect(url_for('expenses_restaurant'))
+
+    f = form.file.data
+    filename = getattr(f, 'filename', '') or ''
+    name_lower = filename.lower()
+    overwrite = bool(form.overwrite.data)
+    tmpdir = tempfile.mkdtemp(prefix='exp_up_')
+    path = os.path.join(tmpdir, filename or f'upload_{uuid.uuid4().hex}')
+    f.save(path)
+
+    added = 0
+    updated = 0
+    failed = 0
+    errors = []
+    db = SessionLocal()
+
+    def normalize_header(h):
+        return re.sub(r"[^a-z0-9]+", "_", (h or '').strip().lower())
+
+    def map_row(row):
+        # Accept a variety of column names, map to fields
+        mapping = {
+            'date': ['date', 'expense_date'],
+            'category': ['category', 'type'],
+            'vendor': ['vendor', 'payee', 'supplier'],
+            'description': ['description', 'details', 'desc'],
+            'amount': ['amount', 'total', 'value'],
+            'payment_method': ['payment_method', 'method', 'pay_method'],
+            'invoice_number': ['invoice_number', 'invoice', 'bill_no', 'invoice_no'],
+            'notes': ['notes', 'note', 'remarks'],
+        }
+        out = {k: '' for k in mapping.keys()}
+        for key, aliases in mapping.items():
+            for a in aliases:
+                if a in row and row[a] not in (None, ''):
+                    out[key] = row[a]
+                    break
+        return out
+
+    try:
+        rows = []
+        if name_lower.endswith('.xlsx'):
+            try:
+                import openpyxl  # type: ignore
+            except Exception:
+                flash('Excel support requires openpyxl. Please install it or upload CSV.', 'danger')
+                shutil.rmtree(tmpdir, ignore_errors=True)
+                return redirect(url_for('expenses_restaurant'))
+            wb = openpyxl.load_workbook(path, data_only=True)
+            ws = wb.active
+            headers = [normalize_header((c.value or '')) for c in next(ws.iter_rows(min_row=1, max_row=1))]
+            for r in ws.iter_rows(min_row=2):
+                row = {headers[i]: (r[i].value if i < len(r) else None) for i in range(len(headers))}
+                rows.append(map_row(row))
+        else:
+            with open(path, 'r', newline='') as fh:
+                reader = csv.DictReader(fh)
+                headers = [normalize_header(h) for h in (reader.fieldnames or [])]
+                for raw in reader:
+                    row = {normalize_header(k): (v or '') for k, v in raw.items()}
+                    rows.append(map_row(row))
+
+        for r in rows:
+            try:
+                d = _parse_date(r.get('date')) if r.get('date') else None
+                if not d:
+                    failed += 1
+                    errors.append('Missing date')
+                    continue
+                amt = float(r.get('amount') or 0.0)
+                inv = str(r.get('invoice_number') or '').strip()
+                if overwrite and inv:
+                    existing = db.query(RestaurantExpense).filter(RestaurantExpense.invoice_number == inv).first()
+                else:
+                    existing = None
+                if existing:
+                    existing.date = d
+                    existing.category = str(r.get('category') or '').strip()
+                    existing.vendor = str(r.get('vendor') or '').strip()
+                    existing.description = str(r.get('description') or '').strip()
+                    existing.amount = amt
+                    existing.payment_method = str(r.get('payment_method') or '').strip()
+                    existing.notes = str(r.get('notes') or '').strip()
+                    db.add(existing)
+                    updated += 1
+                else:
+                    exp = RestaurantExpense(
+                        date=d,
+                        category=str(r.get('category') or '').strip(),
+                        vendor=str(r.get('vendor') or '').strip(),
+                        description=str(r.get('description') or '').strip(),
+                        amount=amt,
+                        payment_method=str(r.get('payment_method') or '').strip(),
+                        invoice_number=inv,
+                        notes=str(r.get('notes') or '').strip(),
+                    )
+                    db.add(exp)
+                    added += 1
+            except Exception as e:
+                failed += 1
+                errors.append(str(e))
+
+        db.commit()
+        msg = f"Imported {added} rows"
+        if updated:
+            msg += f", updated {updated}"
+        if failed:
+            msg += f", failed {failed}"
+        flash(msg, 'success' if failed == 0 else 'warning')
+    except Exception as e:
+        app.logger.error('Restaurant expenses upload error: %s', e)
+        flash(f'Upload error: {e}', 'danger')
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    return redirect(url_for('expenses_restaurant'))
+
+
+@app.route('/expenses/restaurant/template.csv')
+@login_required
+def expenses_restaurant_template():
+    if not current_user.is_admin:
+        abort(403)
+    headers = ['date', 'category', 'vendor', 'description', 'amount', 'payment_method', 'invoice_number', 'notes']
+    content = ','.join(headers) + '\n'
+    resp = make_response(content)
+    resp.headers['Content-Type'] = 'text/csv'
+    resp.headers['Content-Disposition'] = 'attachment; filename=restaurant_expenses_template.csv'
+    return resp
 
 
 @app.route('/expenses/guest-house')
