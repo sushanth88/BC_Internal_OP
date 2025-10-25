@@ -72,16 +72,15 @@
               <th>Month</th>
               <th>Date</th>
               <th>Card</th>
+              <th>Description</th>
               <th>Card Member</th>
               <th>Account #</th>
               <th>Transaction Type</th>
-              <th>Amount</th>
+              <th style="text-align:right;">Amount</th>
               <th>Distribution</th>
               <th>Category</th>
               <th>Sub Category</th>
               <th>Vendor</th>
-              <th>Description</th>
-              <th style="text-align:right;">Amount</th>
               <th>Payment</th>
               <th>Invoice #</th>
               <th>Notes</th>
@@ -93,16 +92,15 @@
                 <td>{{ e.month }}</td>
                 <td>{{ e.date.strftime('%Y-%m-%d') }}</td>
                 <td>{{ e.card }}</td>
+                <td>{{ e.description }}</td>
                 <td>{{ e.card_member }}</td>
                 <td>{{ e.account_number }}</td>
                 <td>{{ e.transaction_type }}</td>
-                <td>{{ '%.2f'|format(e.amount or 0.0) }}</td>
+                <td style="text-align:right;">{{ '%.2f'|format(e.amount or 0.0) }}</td>
                 <td>{{ e.distribution }}</td>
                 <td>{{ e.category }}</td>
                 <td>{{ e.sub_category }}</td>
                 <td>{{ e.vendor }}</td>
-                <td>{{ e.description }}</td>
-                <td style="text-align:right;">{{ '%.2f'|format(e.amount or 0.0) }}</td>
                 <td>{{ e.payment_method }}</td>
                 <td>{{ e.invoice_number }}</td>
                 <td>{{ e.notes }}</td>
