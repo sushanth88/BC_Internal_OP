@@ -127,8 +127,15 @@ class AuditLog(Base):
 class RestaurantExpense(Base):
     __tablename__ = 'restaurant_expenses'
     id = Column(Integer, primary_key=True)
+    month = Column(String(20), default='')
     date = Column(Date, nullable=False)
     category = Column(String(100), default='')
+    sub_category = Column(String(200), default='')
+    card = Column(String(100), default='')
+    card_member = Column(String(100), default='')
+    account_number = Column(String(100), default='')
+    transaction_type = Column(String(100), default='')
+    distribution = Column(String(100), default='')
     vendor = Column(String(200), default='')
     description = Column(Text, default='')
     amount = Column(Float, default=0.0)
@@ -216,6 +223,13 @@ class DeleteAllForm(FlaskForm):
 class RestaurantExpenseForm(FlaskForm):
     date = DateField('Date', validators=[DataRequired()], default=date.today())
     category = StringField('Category', default='')
+    sub_category = StringField('Sub Category', default='')
+    month = StringField('Month', default='')
+    card = StringField('Card', default='')
+    card_member = StringField('Card Member', default='')
+    account_number = StringField('Account #', default='')
+    transaction_type = StringField('Transaction Type', default='')
+    distribution = StringField('Distribution', default='')
     vendor = StringField('Vendor', default='')
     description = TextAreaField('Description', default='')
     amount = FloatField('Amount', default=0.0, validators=[DataRequired()])
@@ -238,6 +252,56 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     # Deduplicate existing transactions: keep the earliest created_at per date (global)
     with engine.begin() as conn:
+        # Restaurant expenses migrations: add missing columns to align with template
+        try:
+            conn.execute(text("SELECT month FROM restaurant_expenses LIMIT 1"))
+        except Exception:
+            try:
+                conn.execute(text("ALTER TABLE restaurant_expenses ADD COLUMN month VARCHAR(20) DEFAULT ''"))
+            except Exception:
+                pass
+        try:
+            conn.execute(text("SELECT sub_category FROM restaurant_expenses LIMIT 1"))
+        except Exception:
+            try:
+                conn.execute(text("ALTER TABLE restaurant_expenses ADD COLUMN sub_category VARCHAR(200) DEFAULT ''"))
+            except Exception:
+                pass
+        try:
+            conn.execute(text("SELECT card FROM restaurant_expenses LIMIT 1"))
+        except Exception:
+            try:
+                conn.execute(text("ALTER TABLE restaurant_expenses ADD COLUMN card VARCHAR(100) DEFAULT ''"))
+            except Exception:
+                pass
+        try:
+            conn.execute(text("SELECT card_member FROM restaurant_expenses LIMIT 1"))
+        except Exception:
+            try:
+                conn.execute(text("ALTER TABLE restaurant_expenses ADD COLUMN card_member VARCHAR(100) DEFAULT ''"))
+            except Exception:
+                pass
+        try:
+            conn.execute(text("SELECT account_number FROM restaurant_expenses LIMIT 1"))
+        except Exception:
+            try:
+                conn.execute(text("ALTER TABLE restaurant_expenses ADD COLUMN account_number VARCHAR(100) DEFAULT ''"))
+            except Exception:
+                pass
+        try:
+            conn.execute(text("SELECT transaction_type FROM restaurant_expenses LIMIT 1"))
+        except Exception:
+            try:
+                conn.execute(text("ALTER TABLE restaurant_expenses ADD COLUMN transaction_type VARCHAR(100) DEFAULT ''"))
+            except Exception:
+                pass
+        try:
+            conn.execute(text("SELECT distribution FROM restaurant_expenses LIMIT 1"))
+        except Exception:
+            try:
+                conn.execute(text("ALTER TABLE restaurant_expenses ADD COLUMN distribution VARCHAR(100) DEFAULT ''"))
+            except Exception:
+                pass
         # Add last_edited_by column if missing (SQLite allows simple ADD COLUMN)
         try:
             conn.execute(text("SELECT last_edited_by FROM transactions LIMIT 1"))
@@ -597,8 +661,15 @@ def expenses_restaurant():
     # Manual add
     if form.validate_on_submit() and request.method == 'POST' and request.form.get('form-id') == 'manual':
         exp = RestaurantExpense(
+            month=(form.month.data or '').strip(),
             date=form.date.data,
             category=form.category.data.strip(),
+            sub_category=(form.sub_category.data or '').strip(),
+            card=(form.card.data or '').strip(),
+            card_member=(form.card_member.data or '').strip(),
+            account_number=(form.account_number.data or '').strip(),
+            transaction_type=(form.transaction_type.data or '').strip(),
+            distribution=(form.distribution.data or '').strip(),
             vendor=form.vendor.data.strip(),
             description=form.description.data.strip(),
             amount=float(form.amount.data or 0.0),
@@ -668,11 +739,18 @@ def expenses_restaurant_upload():
     def map_row(row):
         # Accept a variety of column names, map to fields
         mapping = {
+            'month': ['month'],
             'date': ['date', 'expense_date'],
-            'category': ['category', 'type'],
+            'card': ['card'],
+            'card_member': ['card_member', 'cardmember', 'member'],
+            'account_number': ['account_number', 'account_no', 'account', 'account_', 'account_number_'],
+            'transaction_type': ['transaction_type', 'type'],
+            'amount': ['amount', 'total', 'value'],
+            'distribution': ['distribution'],
+            'category': ['category'],
+            'sub_category': ['sub_categories', 'subcategory', 'sub_category'],
             'vendor': ['vendor', 'payee', 'supplier'],
             'description': ['description', 'details', 'desc'],
-            'amount': ['amount', 'total', 'value'],
             'payment_method': ['payment_method', 'method', 'pay_method'],
             'invoice_number': ['invoice_number', 'invoice', 'bill_no', 'invoice_no'],
             'notes': ['notes', 'note', 'remarks'],
@@ -723,7 +801,14 @@ def expenses_restaurant_upload():
                     existing = None
                 if existing:
                     existing.date = d
+                    existing.month = str(r.get('month') or '').strip()
                     existing.category = str(r.get('category') or '').strip()
+                    existing.sub_category = str(r.get('sub_category') or '').strip()
+                    existing.card = str(r.get('card') or '').strip()
+                    existing.card_member = str(r.get('card_member') or '').strip()
+                    existing.account_number = str(r.get('account_number') or '').strip()
+                    existing.transaction_type = str(r.get('transaction_type') or '').strip()
+                    existing.distribution = str(r.get('distribution') or '').strip()
                     existing.vendor = str(r.get('vendor') or '').strip()
                     existing.description = str(r.get('description') or '').strip()
                     existing.amount = amt
@@ -733,8 +818,15 @@ def expenses_restaurant_upload():
                     updated += 1
                 else:
                     exp = RestaurantExpense(
+                        month=str(r.get('month') or '').strip(),
                         date=d,
                         category=str(r.get('category') or '').strip(),
+                        sub_category=str(r.get('sub_category') or '').strip(),
+                        card=str(r.get('card') or '').strip(),
+                        card_member=str(r.get('card_member') or '').strip(),
+                        account_number=str(r.get('account_number') or '').strip(),
+                        transaction_type=str(r.get('transaction_type') or '').strip(),
+                        distribution=str(r.get('distribution') or '').strip(),
                         vendor=str(r.get('vendor') or '').strip(),
                         description=str(r.get('description') or '').strip(),
                         amount=amt,

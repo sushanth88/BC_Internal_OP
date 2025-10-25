@@ -24,8 +24,15 @@
         {{ form.hidden_tag() }}
         <input type="hidden" name="form-id" value="manual" />
         <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px;">
+          <div>{{ form.month.label }} {{ form.month() }}</div>
           <div>{{ form.date.label }} {{ form.date() }}</div>
           <div>{{ form.category.label }} {{ form.category() }}</div>
+          <div>{{ form.sub_category.label }} {{ form.sub_category() }}</div>
+          <div>{{ form.card.label }} {{ form.card() }}</div>
+          <div>{{ form.card_member.label }} {{ form.card_member() }}</div>
+          <div>{{ form.account_number.label }} {{ form.account_number() }}</div>
+          <div>{{ form.transaction_type.label }} {{ form.transaction_type() }}</div>
+          <div>{{ form.distribution.label }} {{ form.distribution() }}</div>
           <div>{{ form.vendor.label }} {{ form.vendor() }}</div>
           <div>{{ form.amount.label }} {{ form.amount(step='0.01') }}</div>
           <div class="col-span-2" style="grid-column: span 2;">{{ form.description.label }} {{ form.description(rows=2) }}</div>
@@ -59,11 +66,19 @@
       </form>
 
       <div style="overflow:auto; margin-top:10px;">
-        <table class="table" style="min-width:900px;">
+        <table class="table" style="min-width:1200px;">
           <thead>
             <tr>
+              <th>Month</th>
               <th>Date</th>
+              <th>Card</th>
+              <th>Card Member</th>
+              <th>Account #</th>
+              <th>Transaction Type</th>
+              <th>Amount</th>
+              <th>Distribution</th>
               <th>Category</th>
+              <th>Sub Category</th>
               <th>Vendor</th>
               <th>Description</th>
               <th style="text-align:right;">Amount</th>
@@ -75,8 +90,16 @@
           <tbody>
             {% for e in expenses %}
               <tr>
+                <td>{{ e.month }}</td>
                 <td>{{ e.date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ e.card }}</td>
+                <td>{{ e.card_member }}</td>
+                <td>{{ e.account_number }}</td>
+                <td>{{ e.transaction_type }}</td>
+                <td>{{ '%.2f'|format(e.amount or 0.0) }}</td>
+                <td>{{ e.distribution }}</td>
                 <td>{{ e.category }}</td>
+                <td>{{ e.sub_category }}</td>
                 <td>{{ e.vendor }}</td>
                 <td>{{ e.description }}</td>
                 <td style="text-align:right;">{{ '%.2f'|format(e.amount or 0.0) }}</td>
