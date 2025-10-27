@@ -102,9 +102,14 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 .tx-table td.actions, .tx-table th.actions { text-align: center; white-space: nowrap; }
 .tx-table tr:hover td { background: color-mix(in srgb, var(--link) 6%, transparent); }
 .container { max-width: 960px; margin: 24px auto; }
-.topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; }
+/* Center nav links regardless of page width; keep user/account on the far right */
+.topbar { position: relative; display:flex; justify-content:center; align-items:center; margin-bottom: 12px; }
 /* align inner sections (nav vs user) with consistent spacing */
 .topbar > div { display: flex; align-items: center; gap: 12px; }
+/* Keep right-side user/account controls anchored to the right */
+.topbar > div:last-child { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+/* Ensure the nav itself is centered */
+.nav { justify-content: center; }
 /* Logo styles */
 .site-logo { display:block; width: 56px; height: auto; margin: 2px 0; }
 
