@@ -58,6 +58,17 @@ header {
 	padding-right: 20px;
 	box-sizing: border-box;
 }
+/* Full-bleed separator line between header and body */
+.header-separator {
+	border: 0;
+	border-top: 1px solid var(--border);
+	width: 100vw;
+	margin-left: 50%;
+	transform: translateX(-50%);
+	margin-top: 10px;
+	margin-bottom: 18px;
+	opacity: .8;
+}
 /* Brand row: logo + title inline */
 .brand-row { position: relative; display:flex; align-items:center; justify-content:center; padding-right: 80px; gap: 12px; margin-bottom: 14px; }
 .brand-row .site-title { margin: 0; font-size: 1.8rem; line-height: 1.2; }

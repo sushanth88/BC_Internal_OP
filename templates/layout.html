@@ -16,7 +16,10 @@
             var el = wrap.querySelector('table');
             if (!el) return;
             var isOverflow = el.scrollWidth > wrap.clientWidth + 2; // tolerate tiny rounding
-            wrap.classList.toggle('is-scrollable', isOverflow && (wrap.scrollLeft < (el.scrollWidth - wrap.clientWidth - 2)));
+            var atStart = wrap.scrollLeft <= 0;
+            var atEnd = (wrap.scrollLeft + wrap.clientWidth) >= (el.scrollWidth - 2);
+            wrap.classList.toggle('is-scrollable', isOverflow && !atEnd);
+            wrap.classList.toggle('scrolled', isOverflow && !atStart);
           });
         }
         // Bind events
@@ -30,7 +33,9 @@
               var el = wrap.querySelector('table');
               if (!el) return;
               var atEnd = (wrap.scrollLeft + wrap.clientWidth) >= (el.scrollWidth - 1);
+              var atStart = wrap.scrollLeft <= 0;
               wrap.classList.toggle('is-scrollable', !atEnd);
+              wrap.classList.toggle('scrolled', !atStart);
             });
           });
         });
@@ -105,8 +110,8 @@
             No transaction for today — <a href="{{ url_for('new_transaction') }}">Add now</a>
           {% endif %}
         </div>
-      {% endif %}
-  <hr style="margin: 10px 0 18px; opacity:.8;" />
+    {% endif %}
+  <hr class="header-separator" />
     </header>
     {% endif %}
     <main>
