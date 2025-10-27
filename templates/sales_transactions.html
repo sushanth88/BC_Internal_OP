@@ -3,7 +3,7 @@
   <h2>Sales • Transactions</h2>
   {# admin debug banner removed - pagination is admin-only and has been reverted #}
   {% if current_user.is_admin %}
-    <details class="admin-actions">
+    <details class="admin-actions full-bleed">
       <summary>Admin actions</summary>
       <p><a href="{{ url_for('new_transaction') }}" class="button-link">New Transaction</a></p>
       <p>
@@ -45,8 +45,20 @@
     {% endif %}
   {% endif %}
 
+  <form method="get" action="{{ url_for('sales_transactions') }}" class="full-bleed" style="display:flex; gap:10px; align-items:center; margin: 8px 0;">
+    <label for="per_page" style="color:var(--muted);">Rows per page</label>
+    <select id="per_page" name="per_page" onchange="this.form.page.value=1; this.form.submit();">
+      {% set pp = (pagination.per_page if pagination else 50) %}
+      <option value="25" {{ 'selected' if pp==25 else '' }}>25</option>
+      <option value="50" {{ 'selected' if pp==50 else '' }}>50</option>
+      <option value="100" {{ 'selected' if pp==100 else '' }}>100</option>
+      <option value="200" {{ 'selected' if pp==200 else '' }}>200</option>
+    </select>
+    <input type="hidden" name="page" value="{{ pagination.page if pagination else 1 }}" />
+  </form>
+
   {% if transactions %}
-  <div class="tx-table-wrap">
+  <div class="tx-table-wrap full-bleed">
   {# Bulk delete form for admins - uses checkboxes named 'ids' so request.form.getlist('ids') works #}
   {% if current_user.is_admin %}
   <form id="bulk-delete-form" method="post" action="{{ url_for('admin_delete_selected') }}">
@@ -100,7 +112,51 @@
   </form>
   {% endif %}
   </div>
-  {# pagination removed - admin view shows recent transactions only #}
+  {% if pagination and pagination.pages > 1 %}
+    <nav class="pager full-bleed" aria-label="Transactions pages" style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      {% if pagination.has_prev %}
+        <a class="btn" href="{{ pagination.prev_url }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">Prev</a>
+      {% else %}
+        <span class="btn" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px; pointer-events:none; opacity:.5;">Prev</span>
+      {% endif %}
+      {% set first = 1 %}
+      {% set last = pagination.pages %}
+      {% set start_p = [pagination.page-2, 1]|max %}
+      {% set end_p = [pagination.page+2, pagination.pages]|min %}
+      {% if start_p > first %}
+        <a href="{{ url_for('sales_transactions', page=first, per_page=pagination.per_page) }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">1</a>
+        {% if start_p > first + 1 %}<span style="padding:0 4px; color:var(--muted);">…</span>{% endif %}
+      {% endif %}
+      {% for p in range(start_p, end_p + 1) %}
+        {% if p == pagination.page %}
+          <span aria-current="page" style="padding:4px 8px; border:1px solid var(--link); background: color-mix(in srgb, var(--link) 10%, transparent); border-radius:4px;">{{ p }}</span>
+        {% else %}
+          <a href="{{ url_for('sales_transactions', page=p, per_page=pagination.per_page) }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if end_p < last %}
+        {% if end_p < last - 1 %}<span style="padding:0 4px; color:var(--muted);">…</span>{% endif %}
+        <a href="{{ url_for('sales_transactions', page=last, per_page=pagination.per_page) }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">{{ last }}</a>
+      {% endif %}
+      {% if pagination.has_next %}
+        <a class="btn" href="{{ pagination.next_url }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">Next</a>
+      {% else %}
+        <span class="btn" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px; pointer-events:none; opacity:.5;">Next</span>
+      {% endif %}
+      <span style="margin-left:8px; color:var(--muted);">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+      <form method="get" action="{{ url_for('sales_transactions') }}" style="display:inline-flex; gap:8px; align-items:center; margin-left:auto;">
+        <label for="per_page_bottom" style="color:var(--muted);">Rows per page</label>
+        <select id="per_page_bottom" name="per_page" onchange="this.form.page.value=1; this.form.submit();">
+          {% set pp2 = (pagination.per_page if pagination else 50) %}
+          <option value="25" {{ 'selected' if pp2==25 else '' }}>25</option>
+          <option value="50" {{ 'selected' if pp2==50 else '' }}>50</option>
+          <option value="100" {{ 'selected' if pp2==100 else '' }}>100</option>
+          <option value="200" {{ 'selected' if pp2==200 else '' }}>200</option>
+        </select>
+        <input type="hidden" name="page" value="{{ pagination.page if pagination else 1 }}" />
+      </form>
+    </nav>
+  {% endif %}
   {% if current_user.is_admin %}
     {# moved delete-all form into the admin actions panel above #}
   {% endif %}

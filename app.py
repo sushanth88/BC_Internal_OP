@@ -599,10 +599,34 @@ def sales():
 @login_required
 def sales_transactions():
     db = SessionLocal()
-    # For now, show recent transactions for admins and today's transaction for regular users.
+    # For admins show paginated transactions; regular users see today's transaction only.
+    page = 1
+    per_page = 50
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except Exception:
+        page = 1
+    try:
+        per_page = max(1, min(200, int(request.args.get('per_page', 50))))
+    except Exception:
+        per_page = 50
     if current_user.is_admin:
-        txs = db.query(Transaction).order_by(Transaction.date.desc()).limit(100).all()
-        pagination = None
+        q = db.query(Transaction)
+        total = q.count()
+        txs = q.order_by(Transaction.date.desc()).offset((page-1)*per_page).limit(per_page).all()
+        pages = (total + per_page - 1) // per_page if per_page else 1
+        def make_url(p):
+            return url_for('sales_transactions', page=p, per_page=per_page)
+        pagination = {
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'pages': pages,
+            'has_prev': page > 1,
+            'has_next': page < pages,
+            'prev_url': make_url(page-1) if page > 1 else None,
+            'next_url': make_url(page+1) if page < pages else None,
+        }
     else:
         # regular users see only today's transaction (global)
         today_d = date.today()
@@ -682,8 +706,8 @@ def expenses_restaurant():
         flash('Expense added', 'success')
         return redirect(url_for('expenses_restaurant'))
 
-    # Filters (simple): month/year
-    q = db.query(RestaurantExpense).order_by(RestaurantExpense.date.desc(), RestaurantExpense.id.desc())
+    # Filters (simple): by date and category
+    q = db.query(RestaurantExpense)
     start = request.args.get('start')
     end = request.args.get('end')
     category = request.args.get('category', '').strip()
@@ -699,11 +723,49 @@ def expenses_restaurant():
             pass
     if category:
         q = q.filter(RestaurantExpense.category.ilike(f"%{category}%"))
+    # pagination
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except Exception:
+        page = 1
+    try:
+        per_page = max(10, min(200, int(request.args.get('per_page', 50))))
+    except Exception:
+        per_page = 50
+    total = q.count()
+    pages = (total + per_page - 1) // per_page if per_page else 1
+    rows = q.order_by(RestaurantExpense.date.desc(), RestaurantExpense.id.desc()).offset((page-1)*per_page).limit(per_page).all()
+    # compute total amount across the full filtered set (not just current page)
+    try:
+        parsed_start = _parse_date(start) if start else None
+    except Exception:
+        parsed_start = None
+    try:
+        parsed_end = _parse_date(end) if end else None
+    except Exception:
+        parsed_end = None
+    sum_q = db.query(func.sum(RestaurantExpense.amount))
+    if parsed_start:
+        sum_q = sum_q.filter(RestaurantExpense.date >= parsed_start)
+    if parsed_end:
+        sum_q = sum_q.filter(RestaurantExpense.date <= parsed_end)
+    if category:
+        sum_q = sum_q.filter(RestaurantExpense.category.ilike(f"%{category}%"))
+    total_amount = sum_q.scalar() or 0.0
+    def make_url(p):
+        return url_for('expenses_restaurant', page=p, per_page=per_page, start=start or None, end=end or None, category=category or None)
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'pages': pages,
+        'has_prev': page > 1,
+        'has_next': page < pages,
+        'prev_url': make_url(page-1) if page > 1 else None,
+        'next_url': make_url(page+1) if page < pages else None,
+    }
 
-    expenses_rows = q.limit(500).all()
-    total_amount = sum(float(x.amount or 0.0) for x in expenses_rows)
-
-    return render_template('expenses_restaurant.html', form=form, upload_form=upload_form, expenses=expenses_rows, total_amount=total_amount, start=start or '', end=end or '', category=category)
+    return render_template('expenses_restaurant.html', form=form, upload_form=upload_form, expenses=rows, total_amount=total_amount, start=start or '', end=end or '', category=category, pagination=pagination)
 
 
 @app.route('/expenses/restaurant/upload', methods=['POST'])

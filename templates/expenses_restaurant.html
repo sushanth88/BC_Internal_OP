@@ -4,7 +4,7 @@
   <p>Track restaurant expenses. Import from Excel/CSV or add manually below.</p>
 
   <div class="grid" style="display:grid; grid-template-columns: 1fr; gap: 16px; align-items:start;">
-    <section style="border:1px solid var(--muted-border,#e5e7eb); padding:12px; border-radius:8px;">
+  <section class="full-bleed" style="border:1px solid var(--muted-border,#e5e7eb); padding:12px; border-radius:8px;">
       <h3 style="margin-top:0;">Import from File</h3>
       <form method="post" action="{{ url_for('expenses_restaurant_upload') }}" enctype="multipart/form-data">
         {{ upload_form.hidden_tag() }}
@@ -19,32 +19,34 @@
     </section>
 
     <section style="border:1px solid var(--muted-border,#e5e7eb); padding:12px; border-radius:8px;">
-      <h3 style="margin-top:0;">Add Expense</h3>
-      <form method="post" action="{{ url_for('expenses_restaurant') }}">
-        {{ form.hidden_tag() }}
-        <input type="hidden" name="form-id" value="manual" />
-        <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px;">
-          <div>{{ form.month.label }} {{ form.month() }}</div>
-          <div>{{ form.date.label }} {{ form.date() }}</div>
-          <div>{{ form.category.label }} {{ form.category() }}</div>
-          <div>{{ form.sub_category.label }} {{ form.sub_category() }}</div>
-          <div>{{ form.card.label }} {{ form.card() }}</div>
-          <div>{{ form.card_member.label }} {{ form.card_member() }}</div>
-          <div>{{ form.account_number.label }} {{ form.account_number() }}</div>
-          <div>{{ form.transaction_type.label }} {{ form.transaction_type() }}</div>
-          <div>{{ form.distribution.label }} {{ form.distribution() }}</div>
-          <div>{{ form.vendor.label }} {{ form.vendor() }}</div>
-          <div>{{ form.amount.label }} {{ form.amount(step='0.01') }}</div>
-          <div class="col-span-2" style="grid-column: span 2;">{{ form.description.label }} {{ form.description(rows=2) }}</div>
-          <div>{{ form.payment_method.label }} {{ form.payment_method() }}</div>
-          <div>{{ form.invoice_number.label }} {{ form.invoice_number() }}</div>
-          <div class="col-span-4" style="grid-column: 1 / -1;">{{ form.notes.label }} {{ form.notes(rows=2) }}</div>
-        </div>
-        <div style="margin-top:10px;">{{ form.submit(class_='btn') }}</div>
-      </form>
+      <details class="exp-add">
+        <summary class="exp-add-toggle">Add Expense</summary>
+        <form method="post" action="{{ url_for('expenses_restaurant') }}" style="margin-top:10px;">
+          {{ form.hidden_tag() }}
+          <input type="hidden" name="form-id" value="manual" />
+          <div style="display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px;">
+            <div>{{ form.month.label }} {{ form.month() }}</div>
+            <div>{{ form.date.label }} {{ form.date() }}</div>
+            <div>{{ form.category.label }} {{ form.category() }}</div>
+            <div>{{ form.sub_category.label }} {{ form.sub_category() }}</div>
+            <div>{{ form.card.label }} {{ form.card() }}</div>
+            <div>{{ form.card_member.label }} {{ form.card_member() }}</div>
+            <div>{{ form.account_number.label }} {{ form.account_number() }}</div>
+            <div>{{ form.transaction_type.label }} {{ form.transaction_type() }}</div>
+            <div>{{ form.distribution.label }} {{ form.distribution() }}</div>
+            <div>{{ form.vendor.label }} {{ form.vendor() }}</div>
+            <div>{{ form.amount.label }} {{ form.amount(step='0.01') }}</div>
+            <div class="col-span-2" style="grid-column: span 2;">{{ form.description.label }} {{ form.description(rows=2) }}</div>
+            <div>{{ form.payment_method.label }} {{ form.payment_method() }}</div>
+            <div>{{ form.invoice_number.label }} {{ form.invoice_number() }}</div>
+            <div class="col-span-4" style="grid-column: 1 / -1;">{{ form.notes.label }} {{ form.notes(rows=2) }}</div>
+          </div>
+          <div style="margin-top:10px;">{{ form.submit(class_='btn') }}</div>
+        </form>
+      </details>
     </section>
 
-    <section style="border:1px solid var(--muted-border,#e5e7eb); padding:12px; border-radius:8px;">
+  <section class="full-bleed" style="border:1px solid var(--muted-border,#e5e7eb); padding:12px; border-radius:8px;">
       <h3 style="margin-top:0;">Expenses</h3>
       <form method="get" action="{{ url_for('expenses_restaurant') }}" style="display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
         <div>
@@ -60,29 +62,35 @@
           <input type="text" id="category" name="category" value="{{ category }}" placeholder="e.g., Supplies" />
         </div>
         <div>
+          <label for="per_page">Rows per page</label>
+          <select id="per_page" name="per_page" onchange="this.form.page.value=1; this.form.submit();">
+            {% set pp = (pagination.per_page if pagination else 50) %}
+            <option value="25" {{ 'selected' if pp==25 else '' }}>25</option>
+            <option value="50" {{ 'selected' if pp==50 else '' }}>50</option>
+            <option value="100" {{ 'selected' if pp==100 else '' }}>100</option>
+            <option value="200" {{ 'selected' if pp==200 else '' }}>200</option>
+          </select>
+        </div>
+        <div>
           <button class="btn" type="submit">Filter</button>
         </div>
         <div style="margin-left:auto; font-weight:600;">Total: {{ '%.2f'|format(total_amount or 0.0) }}</div>
+        <input type="hidden" name="page" value="{{ pagination.page if pagination else 1 }}" />
       </form>
 
-      <div style="overflow:auto; margin-top:10px;">
-        <table class="table" style="min-width:1200px;">
+      <div class="expenses-scroll" style="margin-top:10px;">
+        <table class="table expenses-table">
           <thead>
             <tr>
               <th>Month</th>
               <th>Date</th>
               <th>Card</th>
               <th>Description</th>
-              <th>Card Member</th>
-              <th>Account #</th>
               <th>Transaction Type</th>
               <th style="text-align:right;">Amount</th>
               <th>Distribution</th>
               <th>Category</th>
               <th>Sub Category</th>
-              <th>Vendor</th>
-              <th>Payment</th>
-              <th>Invoice #</th>
               <th>Notes</th>
             </tr>
           </thead>
@@ -93,24 +101,117 @@
                 <td>{{ e.date.strftime('%Y-%m-%d') }}</td>
                 <td>{{ e.card }}</td>
                 <td>{{ e.description }}</td>
-                <td>{{ e.card_member }}</td>
-                <td>{{ e.account_number }}</td>
                 <td>{{ e.transaction_type }}</td>
                 <td style="text-align:right;">{{ '%.2f'|format(e.amount or 0.0) }}</td>
                 <td>{{ e.distribution }}</td>
                 <td>{{ e.category }}</td>
                 <td>{{ e.sub_category }}</td>
-                <td>{{ e.vendor }}</td>
-                <td>{{ e.payment_method }}</td>
-                <td>{{ e.invoice_number }}</td>
                 <td>{{ e.notes }}</td>
               </tr>
             {% else %}
-              <tr><td colspan="8" style="text-align:center; color:var(--muted-text,#6b7280);">No expenses yet.</td></tr>
+              <tr><td colspan="10" style="text-align:center; color:var(--muted-text,#6b7280);">No expenses yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>
+        <div class="scroll-controls" aria-hidden="false">
+          <button type="button" class="scroll-btn left" title="Scroll left" aria-label="Scroll left">‹</button>
+          <button type="button" class="scroll-btn right" title="Scroll right" aria-label="Scroll right">›</button>
+        </div>
       </div>
     </section>
   </div>
+  {% if pagination and pagination.pages > 1 %}
+  <nav class="pager" aria-label="Expenses pages" style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    {% if pagination.has_prev %}
+      <a class="btn" href="{{ pagination.prev_url }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">Prev</a>
+    {% else %}
+      <span class="btn" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px; pointer-events:none; opacity:.5;">Prev</span>
+    {% endif %}
+    {# Page number window: show first, last, and a window around current #}
+    {% set first = 1 %}
+    {% set last = pagination.pages %}
+    {% set start_p = [pagination.page-2, 1]|max %}
+    {% set end_p = [pagination.page+2, pagination.pages]|min %}
+    {% if start_p > first %}
+      <a href="{{ url_for('expenses_restaurant', page=first, per_page=pagination.per_page, start=start or None, end=end or None, category=category or None) }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">1</a>
+      {% if start_p > first + 1 %}<span style="padding:0 4px; color:var(--muted);">…</span>{% endif %}
+    {% endif %}
+    {% for p in range(start_p, end_p + 1) %}
+      {% if p == pagination.page %}
+        <span aria-current="page" style="padding:4px 8px; border:1px solid var(--link); background: color-mix(in srgb, var(--link) 10%, transparent); border-radius:4px;">{{ p }}</span>
+      {% else %}
+        <a href="{{ url_for('expenses_restaurant', page=p, per_page=pagination.per_page, start=start or None, end=end or None, category=category or None) }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if end_p < last %}
+      {% if end_p < last - 1 %}<span style="padding:0 4px; color:var(--muted);">…</span>{% endif %}
+      <a href="{{ url_for('expenses_restaurant', page=last, per_page=pagination.per_page, start=start or None, end=end or None, category=category or None) }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">{{ last }}</a>
+    {% endif %}
+    {% if pagination.has_next %}
+      <a class="btn" href="{{ pagination.next_url }}" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px;">Next</a>
+    {% else %}
+      <span class="btn" style="padding:4px 8px; border:1px solid var(--border); border-radius:4px; pointer-events:none; opacity:.5;">Next</span>
+    {% endif %}
+    <span style="margin-left:8px; color:var(--muted);">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    <form method="get" action="{{ url_for('expenses_restaurant') }}" style="display:inline-flex; gap:8px; align-items:center; margin-left:auto;">
+      <input type="hidden" name="start" value="{{ start }}" />
+      <input type="hidden" name="end" value="{{ end }}" />
+      <input type="hidden" name="category" value="{{ category }}" />
+      <label for="per_page_bottom" style="color:var(--muted);">Rows per page</label>
+      <select id="per_page_bottom" name="per_page" onchange="this.form.page.value=1; this.form.submit();">
+        {% set pp2 = (pagination.per_page if pagination else 50) %}
+        <option value="25" {{ 'selected' if pp2==25 else '' }}>25</option>
+        <option value="50" {{ 'selected' if pp2==50 else '' }}>50</option>
+        <option value="100" {{ 'selected' if pp2==100 else '' }}>100</option>
+        <option value="200" {{ 'selected' if pp2==200 else '' }}>200</option>
+      </select>
+      <input type="hidden" name="page" value="{{ pagination.page if pagination else 1 }}" />
+    </form>
+  </nav>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    var scroller = document.querySelector('.expenses-scroll');
+    if (!scroller) return;
+    var btnLeft = scroller.querySelector('.scroll-btn.left');
+    var btnRight = scroller.querySelector('.scroll-btn.right');
+    function updateButtons(){
+      var max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      var atStart = scroller.scrollLeft <= 0;
+      var atEnd = scroller.scrollLeft >= max - 1;
+      if (btnLeft) btnLeft.disabled = atStart;
+      if (btnRight) btnRight.disabled = atEnd;
+    }
+    updateButtons();
+    scroller.addEventListener('scroll', updateButtons);
+    if (btnLeft) btnLeft.addEventListener('click', function(){
+      if (scroller.scrollTo) scroller.scrollTo({ left: 0, behavior: 'smooth' });
+      else scroller.scrollLeft = 0;
+      updateButtons();
+    });
+    if (btnRight) btnRight.addEventListener('click', function(){
+      var end = scroller.scrollWidth;
+      if (scroller.scrollTo) scroller.scrollTo({ left: end, behavior: 'smooth' });
+      else scroller.scrollLeft = end;
+      updateButtons();
+    });
+    // Only map vertical wheel to horizontal scroll when Shift is pressed; otherwise, let vertical page scroll be smooth
+    scroller.addEventListener('wheel', function(e){
+      if (!e.shiftKey) return; // require Shift for horizontal mapping
+      var hasHOverflow = scroller.scrollWidth > scroller.clientWidth + 1;
+      if (!hasHOverflow) return; // let page scroll normally
+      var max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+      var next = scroller.scrollLeft + e.deltaY; // use vertical delta as horizontal when Shift is held
+      if (next < 0) next = 0;
+      if (next > max) next = max;
+      if (next !== scroller.scrollLeft) {
+        scroller.scrollLeft = next;
+        e.preventDefault();
+      }
+    }, { passive: false });
+  });
+</script>
 {% endblock %}
