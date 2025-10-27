@@ -94,7 +94,7 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 	position: absolute;
 	top: 0;
 	right: 0;
-	width: 48px;
+	width: 12px; /* match page gutter for visual consistency */
 	height: 100%;
 	pointer-events: none;
 	opacity: 0;
@@ -104,11 +104,254 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 	background: linear-gradient(to left, rgba(0,0,0,0.14), rgba(0,0,0,0));
 	box-shadow: -6px 0 18px rgba(0,0,0,0.02);
 }
-/* Lighter overlay for dark theme */
+/* Left-side scroll hint to balance spacing perception */
+.tx-table-wrap::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 12px; /* match page gutter */
+	height: 100%;
+	pointer-events: none;
+	opacity: 0;
+	transform: translateX(-12px);
+	filter: blur(0.6px);
+	transition: opacity .32s cubic-bezier(.2,.9,.2,1), transform .32s cubic-bezier(.2,.9,.2,1), filter .28s ease;
+	background: linear-gradient(to right, rgba(0,0,0,0.14), rgba(0,0,0,0));
+	box-shadow: 6px 0 18px rgba(0,0,0,0.02);
+}
+/* Show hints when scrolling */
 .tx-table-wrap.is-scrollable::after { opacity: 1; transform: translateX(0); filter: blur(0); }
+.tx-table-wrap.scrolled::before { opacity: 1; transform: translateX(0); filter: blur(0); }
+/* Lighter overlays for dark theme */
 [data-theme="dark"] .tx-table-wrap::after {
-	background: linear-gradient(to left, rgba(255,255,255,0.12), rgba(255,255,255,0));
-	box-shadow: -6px 0 18px rgba(255,255,255,0.02);
+    background: linear-gradient(to left, rgba(255,255,255,0.12), rgba(255,255,255,0));
+    box-shadow: -6px 0 18px rgba(255,255,255,0.02);
+}
+[data-theme="dark"] .tx-table-wrap::before {
+    background: linear-gradient(to right, rgba(255,255,255,0.12), rgba(255,255,255,0));
+    box-shadow: 6px 0 18px rgba(255,255,255,0.02);
+}
+
+/* Full-bleed utility: allow a section to expand to full viewport width within a centered layout */
+.full-bleed {
+	width: 100vw;
+	margin-left: 50%;
+	transform: translateX(-50%);
+	/* Leave a small gutter on both sides so content doesn't touch the edges */
+	padding-left: 20px;
+	padding-right: 20px;
+	/* Include padding in width to avoid creating page-level horizontal overflow */
+	box-sizing: border-box;
+}
+
+/* Global layout override: default all pages to full viewport width and bypass Water.css main max-width.
+   Keep the login page compact/centered by excluding it here.
+   Page-specific rules below can refine gutters per page. */
+body:not([data-page="login"]) > main {
+	max-width: none !important;
+	width: 100% !important;
+	margin: 0 !important;
+	/* Default gutters; specific pages can override these later */
+	padding-left: 20px;
+	padding-right: 20px;
+	box-sizing: border-box;
+}
+
+/* Page-specific override: Let the Restaurant Expenses page use full viewport width */
+body[data-page="expenses_restaurant"] {
+	max-width: none !important; /* Override Water.css default width cap */
+	width: 100% !important;
+}
+body[data-page="expenses_restaurant"] main {
+	max-width: none !important;
+	width: 100% !important;
+	/* Leave a small gutter so tables don't touch the edges */
+	padding-left: 20px;
+	padding-right: 20px;
+}
+
+/* Page-specific override: Let the Sales → Transactions page use full viewport width */
+body[data-page="sales_transactions"] {
+	max-width: none !important; /* Override Water.css default width cap */
+	width: 100% !important;
+}
+body[data-page="sales_transactions"] main {
+	max-width: none !important;
+	width: 100% !important;
+	/* Leave a small gutter so tables don't touch the edges */
+	padding-left: 12px;
+	padding-right: 12px;
+}
+
+/* On Transactions page, tighten gutters on full-bleed sections to 12px */
+body[data-page="sales_transactions"] .full-bleed {
+	padding-left: 12px;
+	padding-right: 12px;
+}
+
+/* Page-specific override: Let the Dashboard page use full viewport width */
+body[data-page="index"] {
+	max-width: none !important; /* Override Water.css default width cap */
+	width: 100% !important;
+}
+body[data-page="index"] main {
+	max-width: none !important;
+	width: 100% !important;
+	/* Leave a small gutter so charts don't touch the edges */
+	padding-left: 20px;
+	padding-right: 20px;
+}
+
+/* Slight page zoom-out for Dashboard to fit more charts comfortably */
+body[data-page="index"] main {
+	zoom: 0.85; /* WebKit/Blink */
+}
+@supports not (zoom: 1) {
+	body[data-page="index"] main {
+		transform: scale(0.85);
+		transform-origin: 0 0;
+	}
+}
+
+/* Slight page zoom-out for Restaurant Expenses to fit more columns */
+body[data-page="expenses_restaurant"] main {
+	zoom: 0.9; /* WebKit/Blink */
+}
+@supports not (zoom: 1) {
+	body[data-page="expenses_restaurant"] main {
+		transform: scale(0.9);
+		transform-origin: 0 0;
+	}
+}
+
+/* Avoid page-level horizontal scroll on Restaurant Expenses page; use the inner scroller instead */
+html:has(body[data-page="expenses_restaurant"]) {
+	overflow-x: hidden !important;
+}
+body[data-page="expenses_restaurant"] {
+	scrollbar-gutter: stable both-edges;
+}
+
+/* Don't wrap cells on Restaurant Expenses table; allow horizontal scroll instead */
+body[data-page="expenses_restaurant"] table th,
+body[data-page="expenses_restaurant"] table td {
+	white-space: nowrap;
+}
+
+/* Make text slightly smaller and tighter so content fits without visual overlap */
+body[data-page="expenses_restaurant"] table {
+	font-size: 0.92rem; /* slightly smaller than default */
+}
+body[data-page="expenses_restaurant"] table th,
+body[data-page="expenses_restaurant"] table td {
+	padding: 6px 8px; /* a bit tighter than global 8px 10px */
+	line-height: 1.25;
+}
+/* Prevent visual bleed; clip too-long text and show ellipsis when constrained */
+body[data-page="expenses_restaurant"] table td {
+	overflow: visible;
+	text-overflow: clip;
+}
+
+/* Make the Restaurant Expenses table fit content width and scroll horizontally as needed */
+body[data-page="expenses_restaurant"] .expenses-table {
+	width: max-content !important;
+	table-layout: auto;
+    min-width: 1200px; /* ensure overflow on smaller viewports for visible horizontal scroll */
+}
+
+/* Dedicated horizontal scroll container for the expenses table */
+body[data-page="expenses_restaurant"] .expenses-scroll {
+	overflow-x: auto;
+	overflow-y: hidden;
+	-webkit-overflow-scrolling: touch;
+	padding-bottom: 14px; /* create space for scrollbar overlay and controls */
+	width: 100%; /* match parent section width (full-bleed handles viewport) */
+	max-width: 100%;
+	display: block;
+	position: relative;
+	touch-action: pan-x;
+	scrollbar-gutter: stable both-edges;
+}
+
+/* Scroll control buttons */
+body[data-page="expenses_restaurant"] .expenses-scroll .scroll-controls {
+	position: absolute;
+	right: 8px;
+	bottom: 4px;
+	display: flex;
+	gap: 8px;
+	pointer-events: none; /* allow scrollbar interaction; buttons re-enable */
+}
+body[data-page="expenses_restaurant"] .expenses-scroll .scroll-controls .scroll-btn {
+	pointer-events: auto;
+	border: 1px solid var(--border);
+	background: color-mix(in srgb, var(--bg) 88%, transparent);
+	color: var(--text);
+	width: 28px;
+	height: 24px;
+	line-height: 22px;
+	text-align: center;
+	border-radius: 6px;
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+body[data-page="expenses_restaurant"] .expenses-scroll .scroll-controls .scroll-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Make Description column a bit narrower with ellipsis */
+body[data-page="expenses_restaurant"] .expenses-table th.col-desc,
+body[data-page="expenses_restaurant"] .expenses-table td.col-desc {
+	width: 240px;
+	max-width: 240px;
+}
+body[data-page="expenses_restaurant"] .expenses-table td.col-desc {
+	overflow: hidden;       /* override generic visible */
+	text-overflow: ellipsis;/* show … when truncated */
+	white-space: nowrap;    /* keep on one line */
+}
+
+/* Add Expense dropdown styling */
+body[data-page="expenses_restaurant"] details.exp-add {
+	margin: 0;
+}
+body[data-page="expenses_restaurant"] details.exp-add > summary.exp-add-toggle {
+	list-style: none;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: 6px;
+	border: 1px solid var(--border);
+	background: transparent;
+	color: var(--text);
+	user-select: none;
+}
+body[data-page="expenses_restaurant"] details.exp-add > summary.exp-add-toggle:hover {
+	background: color-mix(in srgb, var(--link) 8%, transparent);
+}
+/* Hide default marker */
+body[data-page="expenses_restaurant"] details.exp-add > summary.exp-add-toggle::-webkit-details-marker { display: none; }
+body[data-page="expenses_restaurant"] details.exp-add > summary.exp-add-toggle::marker { content: ''; }
+
+/* Make the horizontal scrollbar more noticeable (WebKit-based browsers) */
+body[data-page="expenses_restaurant"] .expenses-scroll::-webkit-scrollbar {
+	height: 10px;
+}
+body[data-page="expenses_restaurant"] .expenses-scroll::-webkit-scrollbar-track {
+	background: color-mix(in srgb, var(--border) 60%, transparent);
+	border-radius: 8px;
+}
+body[data-page="expenses_restaurant"] .expenses-scroll::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--text) 28%, transparent);
+	border-radius: 8px;
+}
+body[data-page="expenses_restaurant"] .expenses-scroll::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in srgb, var(--text) 40%, transparent);
 }
 
 /* Theme toggle alignment */
@@ -248,6 +491,14 @@ html, body {
 }
 main { overflow: visible; }
 .charts { display: block; padding-bottom: 32px; }
+/* On Dashboard, make the charts block smaller and centered */
+body[data-page="index"] .charts {
+	/* Make charts wider but align to the left gutter instead of centering */
+	max-width: 1400px;
+	width: 100%;
+	margin-left: 0;
+	margin-right: auto;
+}
 
 .charts-controls {
 	display: flex;
