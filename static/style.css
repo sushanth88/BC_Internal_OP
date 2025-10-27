@@ -49,6 +49,15 @@ html, body { background: var(--bg); color: var(--text); }
 header h1, header h2, header h3, header h4, header h5, header h6,
 h1, h2, h3, h4, h5, h6 { color: var(--text) !important; font-family: var(--font-sans); letter-spacing: -0.01em; }
 .site-title { color: var(--text) !important; font-family: var(--font-sans); letter-spacing: -0.01em; }
+/* Center the header section across all pages while keeping main full-bleed */
+header {
+	width: 100%;
+	max-width: 1400px; /* align with charts max width for visual consistency */
+	margin: 0 auto;
+	padding-left: 20px;
+	padding-right: 20px;
+	box-sizing: border-box;
+}
 /* Brand row: logo + title inline */
 .brand-row { position: relative; display:flex; align-items:center; justify-content:center; padding-right: 80px; gap: 12px; margin-bottom: 14px; }
 .brand-row .site-title { margin: 0; font-size: 1.8rem; line-height: 1.2; }
