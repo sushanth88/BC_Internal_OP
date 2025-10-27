@@ -60,11 +60,14 @@ header {
 }
 /* Full-bleed separator line between header and body */
 .header-separator {
+	/* Use background color + 1px height for consistent rendering across UAs */
 	border: 0;
-	border-top: 1px solid var(--border);
-	width: 100vw;
-	margin-left: 50%;
-	transform: translateX(-50%);
+	height: 1px;
+	background: var(--border);
+	display: block;
+	/* Full-bleed trick: extend to viewport edges regardless of parent width */
+	margin-left: calc(50% - 50vw);
+	margin-right: calc(50% - 50vw);
 	margin-top: 10px;
 	margin-bottom: 18px;
 	opacity: .8;
