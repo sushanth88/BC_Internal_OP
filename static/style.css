@@ -65,9 +65,12 @@ header {
 	height: 1px;
 	background: var(--border);
 	display: block;
+	/* Ensure Water.css doesn't constrain width */
+	max-width: none !important;
+	width: auto !important;
 	/* Full-bleed trick: extend to viewport edges regardless of parent width */
-	margin-left: calc(50% - 50vw);
-	margin-right: calc(50% - 50vw);
+	margin-left: calc(50% - 50vw) !important;
+	margin-right: calc(50% - 50vw) !important;
 	margin-top: 10px;
 	margin-bottom: 18px;
 	opacity: .8;
