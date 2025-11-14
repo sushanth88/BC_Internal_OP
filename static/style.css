@@ -108,8 +108,29 @@ table th, table td { padding: 8px 10px; border: 1px solid var(--border); }
 .topbar > div { display: flex; align-items: center; gap: 12px; }
 /* Keep right-side user/account controls anchored to the right */
 .topbar > div:last-child { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
-/* Ensure the nav itself is centered */
-.nav { justify-content: center; }
+/* Ensure the nav itself is centered and laid out inline */
+.nav { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Submenu scaffolding */
+.nav .nav-item { position: relative; }
+.nav .submenu {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	display: none; /* hidden by default; shown when parent expanded */
+	background: var(--bg);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 6px;
+	min-width: 200px;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+	z-index: 1000;
+}
+.nav .submenu.right { left: auto; right: 0; }
+.nav .submenu a { display: block; padding: 6px 10px; border-radius: 6px; white-space: nowrap; }
+.nav .submenu a:hover { background: color-mix(in srgb, var(--link) 10%, transparent); }
+/* Show submenu when expanded via JS toggling aria-expanded */
+.nav .nav-item[aria-expanded="true"] > .submenu { display: block; }
 /* Logo styles */
 .site-logo { display:block; width: 56px; height: auto; margin: 2px 0; }
 
