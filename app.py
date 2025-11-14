@@ -28,6 +28,16 @@ SQLALCHEMY_DATABASE_URI = f'sqlite:///{DB_PATH}'
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('BC_SECRET', 'dev-secret')
 
+# Detect optional Excel dependency once and reuse everywhere
+try:
+    import openpyxl as _openpyxl  # type: ignore
+    OPENPYXL_AVAILABLE = True
+    OPENPYXL_VERSION = getattr(_openpyxl, '__version__', 'unknown')
+except Exception as _oxl_err:
+    OPENPYXL_AVAILABLE = False
+    OPENPYXL_VERSION = None
+    OPENPYXL_IMPORT_ERROR = repr(_oxl_err)
+
 # enable CSRF protection for forms and POST endpoints
 csrf = CSRFProtect()
 csrf.init_app(app)
@@ -838,13 +848,12 @@ def expenses_restaurant_upload():
     try:
         rows = []
         if name_lower.endswith('.xlsx'):
-            try:
-                import openpyxl  # type: ignore
-            except Exception:
+            if not OPENPYXL_AVAILABLE:
+                app.logger.warning('openpyxl unavailable during Restaurant upload: %s', globals().get('OPENPYXL_IMPORT_ERROR', 'unknown error'))
                 flash('Excel support requires openpyxl. Please install it or upload CSV.', 'danger')
                 shutil.rmtree(tmpdir, ignore_errors=True)
                 return redirect(url_for('expenses_restaurant'))
-            wb = openpyxl.load_workbook(path, data_only=True)
+            wb = _openpyxl.load_workbook(path, data_only=True)
             ws = wb.active
             headers = [normalize_header((c.value or '')) for c in next(ws.iter_rows(min_row=1, max_row=1))]
             for r in ws.iter_rows(min_row=2):
@@ -1385,12 +1394,11 @@ def admin_upload():
                 reader = _csv.DictReader(io.StringIO(text))
                 rows = list(reader)
             elif ext == 'xlsx':
-                try:
-                    import openpyxl
-                except Exception:
+                if not OPENPYXL_AVAILABLE:
+                    app.logger.warning('openpyxl unavailable during Transactions upload: %s', globals().get('OPENPYXL_IMPORT_ERROR', 'unknown error'))
                     flash('Excel support requires openpyxl. Please install it or upload CSV.', 'danger')
                     return render_template('admin_upload.html', form=form)
-                wb = openpyxl.load_workbook(file, data_only=True)
+                wb = _openpyxl.load_workbook(file, data_only=True)
                 ws = wb.active
                 headers = [str(c.value).strip() if c.value is not None else '' for c in next(ws.iter_rows(min_row=1, max_row=1))]
                 for r in ws.iter_rows(min_row=2, values_only=True):
@@ -1658,6 +1666,13 @@ def dev_create_admin():
 
 if __name__ == '__main__':
     init_db()
+    try:
+        if OPENPYXL_AVAILABLE:
+            app.logger.info('openpyxl available: version %s', OPENPYXL_VERSION)
+        else:
+            app.logger.info('openpyxl NOT available: %s', globals().get('OPENPYXL_IMPORT_ERROR', 'unknown error'))
+    except Exception:
+        pass
     # prefer explicit port 50010 to avoid macOS services binding to 5000
     import sys
     port = 50010
@@ -1669,4 +1684,7 @@ if __name__ == '__main__':
             except Exception:
                 pass
     port = int(os.environ.get('FLASK_RUN_PORT', port))
-    app.run(debug=True, port=port)
+    # When running as a background/daemon (nohup), the Werkzeug reloader
+    # may attempt to access stdin and fail with termios.error. Disable the
+    # reloader to make background launches stable while keeping debug=True.
+    app.run(debug=True, port=port, use_reloader=False)
