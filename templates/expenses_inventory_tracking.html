@@ -1,0 +1,46 @@
+{% extends 'layout.html' %}
+{% block content %}
+  <h2>Inventory Tracking</h2>
+  <form method="post" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+    <div>
+      {{ form.file.label }}<br>
+      {{ form.file() }}
+    </div>
+    <div>
+      <label>{{ form.overwrite() }} Overwrite existing items for same UPC and date</label>
+    </div>
+    <div>
+      {{ form.submit(class_='btn') }}
+    </div>
+  </form>
+
+  {% if items %}
+    <div class="tx-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>UPC</th>
+            <th>Name</th>
+            <th>Total Qty</th>
+            <th>Total Spent</th>
+            <th>Unit Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+            <tr>
+              <td>{{ it.upc or '-' }}</td>
+              <td>{{ it.name or '-' }}</td>
+              <td>{{ '%.2f'|format(it.total_qty) }}</td>
+              <td>${{ '%.2f'|format(it.total_spent) }}</td>
+              <td>{% if it.total_qty %}${{ '%.4f'|format(it.unit_price) }}{% else %}-{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No inventory items yet. Upload a CSV or Excel file containing columns like UPC, Name, Quantity, Total.</p>
+  {% endif %}
+{% endblock %}
