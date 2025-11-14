@@ -40,7 +40,6 @@
           });
         });
       })();
-
       (function(){
         try {
           var mode = localStorage.getItem('theme-mode');
@@ -79,53 +78,105 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body data-page="{{ request.endpoint }}">
+    <script>
+      (function(){
+        try {
+          var st = localStorage.getItem('ui-sidebar-state');
+          if (st === 'open') {
+            document.body.classList.add('sidebar-open');
+          } else {
+            document.body.classList.add('sidebar-collapsed');
+          }
+        } catch(_){ document.body.classList.add('sidebar-collapsed'); }
+      })();
+    </script>
     {% set is_login = (request.endpoint == 'login') %}
-  {% if not is_login %}
-  <header>
-      <div class="brand-row">
-        <div class="brand-left">
-          <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal logo" class="site-logo" />
-          <h1 class="site-title">Biryani City Portal</h1>
-        </div>
-        <div class="theme-toggle" role="group" aria-label="Theme">
-          <button type="button" class="theme-btn" data-mode="auto" aria-pressed="false" title="Auto (system)">🖥️</button>
-          <button type="button" class="theme-btn" data-mode="light" aria-pressed="false" title="Light">☀️</button>
-          <button type="button" class="theme-btn" data-mode="dark" aria-pressed="false" title="Dark">🌙</button>
-        </div>
-      </div>
+    {% if not is_login %}
       {% include '_nav.html' %}
-      {% if current_user.is_authenticated and not current_user.is_admin %}
-        {# show quick summary for regular users whether today's transaction exists #}
-        <div class="header-summary">
-          {% set today_tx = namespace(found=False, id=None) %}
-          {% for tx in (transactions or []) %}
-            {% if tx.date == (today or None) %}
-              {% set today_tx.found = True %}
-              {% set today_tx.id = tx.id %}
-            {% endif %}
-          {% endfor %}
-          {% if today_tx.found %}
-            Today's transaction exists — <a href="{{ url_for('edit_transaction', tx_id=today_tx.id) }}">Edit</a>
-          {% else %}
-            No transaction for today — <a href="{{ url_for('new_transaction') }}">Add now</a>
+      <script>
+        (function(){
+          var sidebar = document.getElementById('sidebar');
+          if (!sidebar) return;
+          function expand(){ document.body.classList.add('sidebar-hover'); }
+          function collapse(){ document.body.classList.remove('sidebar-hover'); }
+          sidebar.addEventListener('mouseenter', expand);
+          sidebar.addEventListener('mouseleave', collapse);
+          sidebar.addEventListener('focusin', expand);
+          sidebar.addEventListener('focusout', function(){ if (!sidebar.contains(document.activeElement)) collapse(); });
+          try { if (localStorage.getItem('ui-sidebar-state') === 'open') expand(); } catch(_){}
+          document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') collapse(); });
+        })();
+      </script>
+      <script>
+        (function(){
+          var nav = document.querySelector('.nav-vertical');
+          if (!nav) return;
+          nav.addEventListener('mouseover', function(ev){
+            var parentLink = ev.target.closest('.parent');
+            if (parentLink && parentLink.parentElement && parentLink.parentElement.classList.contains('has-submenu')) {
+              parentLink.setAttribute('aria-expanded','true');
+              parentLink.parentElement.setAttribute('aria-expanded','true');
+            }
+          });
+          nav.addEventListener('mouseout', function(ev){
+            var parentLink = ev.target.closest('.parent');
+            if (parentLink && parentLink.parentElement && parentLink.parentElement.classList.contains('has-submenu')) {
+              if (!parentLink.matches(':focus')) {
+                parentLink.setAttribute('aria-expanded','false');
+                parentLink.parentElement.setAttribute('aria-expanded','false');
+              }
+            }
+          });
+          nav.addEventListener('keydown', function(ev){
+            var tgt = ev.target;
+            if (tgt && tgt.classList && tgt.classList.contains('parent') && (ev.key === ' ' || ev.key === 'Enter')) {
+              ev.preventDefault();
+              var expanded = tgt.getAttribute('aria-expanded') === 'true';
+              var next = !expanded;
+              tgt.setAttribute('aria-expanded', next ? 'true' : 'false');
+              if (tgt.parentElement) tgt.parentElement.setAttribute('aria-expanded', next ? 'true' : 'false');
+            }
+            if (ev.key === 'Escape') {
+              var openParents = nav.querySelectorAll('.has-submenu[aria-expanded="true"]');
+              openParents.forEach(function(p){ p.setAttribute('aria-expanded','false'); var link = p.querySelector('.parent'); if (link) link.setAttribute('aria-expanded','false'); });
+            }
+          });
+          nav.addEventListener('focusin', function(ev){
+            var parentLink = ev.target.closest('.parent');
+            if (parentLink && parentLink.parentElement && parentLink.parentElement.classList.contains('has-submenu')) {
+              parentLink.setAttribute('aria-expanded','true');
+              parentLink.parentElement.setAttribute('aria-expanded','true');
+            }
+          });
+            nav.addEventListener('focusout', function(ev){
+              var parentLink = ev.target.closest('.parent');
+              if (parentLink && parentLink.parentElement && parentLink.parentElement.classList.contains('has-submenu')) {
+                setTimeout(function(){
+                  var stillWithin = parentLink.parentElement.contains(document.activeElement);
+                  if (!stillWithin) {
+                    parentLink.setAttribute('aria-expanded','false');
+                    parentLink.parentElement.setAttribute('aria-expanded','false');
+                  }
+                }, 120);
+              }
+            });
+        })();
+      </script>
+    {% endif %}
+    <div class="app-shell">
+      <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul>
+              {% for category, msg in messages %}
+                <li><strong>[{{ category }}]</strong> {{ msg }}</li>
+              {% endfor %}
+            </ul>
           {% endif %}
-        </div>
-    {% endif %}
-    </header>
-    <hr class="header-separator" />
-    {% endif %}
-    <main>
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <ul>
-          {% for category, msg in messages %}
-            <li><strong>[{{ category }}]</strong> {{ msg }}</li>
-          {% endfor %}
-          </ul>
-        {% endif %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </main>
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
     <script>
       (function(){
         // Theme management: auto (system), light, dark
@@ -197,9 +248,15 @@
           }
           updateToggleUI(initial);
           document.addEventListener('click', function(ev){
-            var t = ev.target;
-            if (t && t.classList && t.classList.contains('theme-btn')){
+            var t = ev.target && ev.target.closest ? ev.target.closest('.theme-btn') : null;
+            if (t){
               var val = t.getAttribute('data-mode');
+              // In collapsed sidebar, clicking active icon cycles to next mode
+              if (document.body.classList.contains('sidebar-collapsed') && t.classList.contains('active')) {
+                var order = ['auto','light','dark'];
+                var idx = order.indexOf(val);
+                val = order[(idx + 1) % order.length];
+              }
               if (val === 'auto') localStorage.removeItem('theme-mode');
               else localStorage.setItem('theme-mode', val);
               applyTheme(val);
@@ -210,15 +267,14 @@
       })();
     </script>
     <script>
+      // Delete transaction handler (restored)
       document.addEventListener('click', function(ev) {
         var el = ev.target;
         if (el.classList && el.classList.contains('delete-link')) {
           ev.preventDefault();
-          // Use modal confirmation if available, otherwise fallback to native confirm
           var ask = window.showConfirm ? window.showConfirm({ title: 'Delete transaction', message: 'Delete transaction ' + el.dataset.id + '?' }) : Promise.resolve(confirm('Delete transaction ' + el.dataset.id + '?'));
           ask.then(function(yes){
             if(!yes) return;
-            // read optional CSRF token from meta tag if present
             var headers = {'Content-Type': 'application/x-www-form-urlencoded'};
             var meta = document.querySelector('meta[name="csrf-token"]');
             if (meta && meta.content) {

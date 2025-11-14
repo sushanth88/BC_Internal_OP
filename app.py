@@ -1676,6 +1676,7 @@ if __name__ == '__main__':
     # prefer explicit port 50010 to avoid macOS services binding to 5000
     import sys
     port = 50010
+    host = '127.0.0.1'
     # allow overriding via command-line --port or FLASK_RUN_PORT env
     for i, a in enumerate(sys.argv):
         if a == '--port' and i+1 < len(sys.argv):
@@ -1683,8 +1684,14 @@ if __name__ == '__main__':
                 port = int(sys.argv[i+1])
             except Exception:
                 pass
+        if a == '--host' and i+1 < len(sys.argv):
+            try:
+                host = str(sys.argv[i+1])
+            except Exception:
+                pass
     port = int(os.environ.get('FLASK_RUN_PORT', port))
+    host = os.environ.get('FLASK_RUN_HOST', host)
     # When running as a background/daemon (nohup), the Werkzeug reloader
     # may attempt to access stdin and fail with termios.error. Disable the
     # reloader to make background launches stable while keeping debug=True.
-    app.run(debug=True, port=port, use_reloader=False)
+    app.run(debug=True, host=host, port=port, use_reloader=False)
