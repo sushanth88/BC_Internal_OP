@@ -24,6 +24,7 @@
           <div class="submenu" role="menu" aria-label="Expenses subpages">
             <a href="{{ url_for('expenses_salaries') }}" role="menuitem" class="{% if request.path == url_for('expenses_salaries') %}active{% endif %}">Salaries</a>
             <a href="{{ url_for('expenses_restaurant') }}" role="menuitem" class="{% if request.path == url_for('expenses_restaurant') %}active{% endif %}">Restaurant</a>
+            <a href="{{ url_for('expenses_inventory_tracking') }}" role="menuitem" class="{% if request.path == url_for('expenses_inventory_tracking') %}active{% endif %}">Inventory Tracking</a>
             <a href="{{ url_for('expenses_guest_house') }}" role="menuitem" class="{% if request.path == url_for('expenses_guest_house') %}active{% endif %}">Guest House</a>
           </div>
         </div>

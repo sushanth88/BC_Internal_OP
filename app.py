@@ -671,6 +671,13 @@ def expenses_salaries():
         return redirect(url_for('sales'))
     return render_template('expenses_salaries.html')
 
+@app.route('/expenses/inventory-tracking')
+@login_required
+def expenses_inventory_tracking():
+    if not current_user.is_admin:
+        flash('You do not have access to Expenses.', 'warning')
+        return redirect(url_for('sales'))
+    return render_template('expenses_inventory_tracking.html')
 
  
 
