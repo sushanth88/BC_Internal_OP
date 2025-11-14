@@ -1,7 +1,13 @@
 {% extends 'layout.html' %}
 {% block content %}
-  <h2>Expenses — Restaurant</h2>
-  <p>Track restaurant expenses. Import from Excel/CSV or add manually below.</p>
+  <div style="text-align:center; padding:32px 12px;">
+    <h2>Expenses — Restaurant</h2>
+    <p style="max-width:820px; margin: 10px auto; color:var(--muted);">Track restaurant expenses. Import from Excel/CSV or add manually below.</p>
+    <div style="margin-top:12px; display:flex; gap:12px; justify-content:center;">
+      <a class="btn" href="{{ url_for('index') }}">Dashboard</a>
+      <a class="btn" href="{{ url_for('expenses') }}">Expenses</a>
+    </div>
+  </div>
 
   <div class="grid" style="display:grid; grid-template-columns: 1fr; gap: 16px; align-items:start;">
   <section class="full-bleed" style="border:1px solid var(--muted-border,#e5e7eb); padding:12px; border-radius:8px;">
