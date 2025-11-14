@@ -672,6 +672,15 @@ def expenses_salaries():
     return render_template('expenses_salaries.html')
 
 
+@app.route('/expenses/inventory')
+@login_required
+def expenses_inventory():
+    if not current_user.is_admin:
+        flash('You do not have access to Expenses.', 'warning')
+        return redirect(url_for('sales'))
+    return render_template('expenses_inventory.html')
+
+
 @app.route('/expenses/restaurant', methods=['GET', 'POST'])
 @login_required
 def expenses_restaurant():
