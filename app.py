@@ -20,6 +20,7 @@ import csv
 import tempfile
 import uuid
 import shutil
+from typing import Optional, List, Dict
 
 BASE_DIR = os.path.dirname(__file__)
 DB_PATH = os.path.join(BASE_DIR, 'data.sqlite')
@@ -155,6 +156,18 @@ class RestaurantExpense(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class InventoryReceiptItem(Base):
+    __tablename__ = 'inventory_receipt_items'
+    id = Column(Integer, primary_key=True)
+    upc = Column(String(64), index=True, default='')
+    name = Column(String(200), default='')
+    quantity = Column(Float, default=0.0)
+    total_price = Column(Float, default=0.0)
+    vendor = Column(String(120), default='')
+    receipt_date = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 @login_manager.user_loader
 def load_user(user_id):
     db = SessionLocal()
@@ -256,6 +269,24 @@ class RestaurantExpenseUploadForm(FlaskForm):
     ])
     overwrite = BooleanField('Overwrite existing rows with same Invoice #')
     submit = SubmitField('Import')
+
+
+class InventoryUploadForm(FlaskForm):
+    file = UploadFileField('Upload Inventory CSV or Excel (.csv, .xlsx)', validators=[
+        FileRequired(),
+        FileAllowed(['csv', 'xlsx'], 'CSV or Excel files only')
+    ])
+    overwrite = BooleanField('Overwrite existing items for same UPC/date')
+    submit = SubmitField('Import Inventory')
+
+
+def _safe_str(val) -> str:
+    try:
+        if val is None:
+            return ''
+        return str(val).strip()
+    except Exception:
+        return ''
 
 
 def init_db():
@@ -681,13 +712,127 @@ def expenses_salaries():
         return redirect(url_for('sales'))
     return render_template('expenses_salaries.html')
 
-@app.route('/expenses/inventory-tracking')
+@app.route('/expenses/inventory-tracking', methods=['GET', 'POST'])
 @login_required
 def expenses_inventory_tracking():
     if not current_user.is_admin:
         flash('You do not have access to Expenses.', 'warning')
         return redirect(url_for('sales'))
-    return render_template('expenses_inventory_tracking.html')
+    form = InventoryUploadForm()
+    db = SessionLocal()
+    if request.method == 'POST' and form.validate_on_submit():
+        f = form.file.data
+        tmpdir = tempfile.mkdtemp(prefix='inv_upload_')
+        path = os.path.join(tmpdir, f'upload_{uuid.uuid4().hex}')
+        try:
+            # Save uploaded file
+            f.save(path)
+            rows: List[Dict[str, str]] = []
+            if path.lower().endswith('.csv'):
+                with open(path, 'r', encoding='utf-8', errors='ignore') as fh:
+                    reader = csv.DictReader(fh)
+                    for r in reader:
+                        rows.append(r)
+            elif path.lower().endswith('.xlsx'):
+                if not OPENPYXL_AVAILABLE:
+                    flash('Excel support not available on server (openpyxl not installed). Please upload CSV.', 'warning')
+                else:
+                    from openpyxl import load_workbook  # type: ignore
+                    wb = load_workbook(path, read_only=True)
+                    ws = wb.active
+                    headers = []
+                    for j, cell in enumerate(ws[1], start=1):
+                        headers.append(_safe_str(cell.value).lower())
+                    for i, row in enumerate(ws.iter_rows(min_row=2), start=2):
+                        rec = {}
+                        for j, cell in enumerate(row):
+                            key = headers[j] if j < len(headers) else f'col{j+1}'
+                            rec[key] = _safe_str(cell.value)
+                        rows.append(rec)
+            else:
+                flash('Unsupported file type', 'danger')
+
+            # Heuristics for column names
+            # Accept variations like UPC/upc, qty/quantity, total/price/amount, name/description, date
+            def pick(d: dict, names: List[str]) -> str:
+                for n in names:
+                    if n in d:
+                        return d.get(n)
+                # fallback case-insensitive
+                lower = {k.lower(): v for k, v in d.items()}
+                for n in names:
+                    if n.lower() in lower:
+                        return lower[n.lower()]
+                return ''
+
+            added = 0
+            updated = 0
+            if rows:
+                for r in rows:
+                    upc = _safe_str(pick(r, ['upc','barcode','code']))
+                    name = _safe_str(pick(r, ['name','item','description','product']))
+                    qty = _parse_float(pick(r, ['qty','quantity','count','units']))
+                    total = _parse_float(pick(r, ['total','total_price','price','amount','cost']))
+                    vend = _safe_str(pick(r, ['vendor','supplier']))
+                    dval = pick(r, ['date','receipt_date','purchased_at'])
+                    rdate = None
+                    try:
+                        rdate = _parse_date(dval)
+                    except Exception:
+                        rdate = None
+
+                    if not upc and not name:
+                        continue
+
+                    # overwrite behavior: if enabled, try to find same upc/date and replace
+                    item = None
+                    if form.overwrite.data and upc and rdate:
+                        item = db.query(InventoryReceiptItem).filter(InventoryReceiptItem.upc==upc, InventoryReceiptItem.receipt_date==rdate).first()
+                    if item:
+                        item.name = name or item.name
+                        item.quantity = float(qty or 0.0)
+                        item.total_price = float(total or 0.0)
+                        item.vendor = vend or item.vendor
+                        updated += 1
+                    else:
+                        db.add(InventoryReceiptItem(upc=upc, name=name, quantity=float(qty or 0.0), total_price=float(total or 0.0), vendor=vend, receipt_date=rdate))
+                        added += 1
+                db.commit()
+                if updated and not added:
+                    flash(f'Updated {updated} items.', 'success')
+                elif added and not updated:
+                    flash(f'Imported {added} items.', 'success')
+                else:
+                    flash(f'Imported {added} items, updated {updated} items.', 'success')
+            else:
+                flash('No rows found in the uploaded file.', 'warning')
+        except Exception as e:
+            flash(f'Upload failed: {e}', 'danger')
+        finally:
+            try:
+                shutil.rmtree(tmpdir, ignore_errors=True)
+            except Exception:
+                pass
+
+    # Build aggregated view grouped by UPC
+    rows = db.query(InventoryReceiptItem).all()
+    aggregates: Dict[str, dict] = {}
+    for it in rows:
+        key = it.upc or (it.name or '').lower()
+        if not key:
+            key = f'unknown-{it.id}'
+        agg = aggregates.get(key)
+        if not agg:
+            aggregates[key] = agg = dict(upc=it.upc, name=it.name, total_qty=0.0, total_spent=0.0, unit_price=0.0)
+        agg['total_qty'] += (it.quantity or 0.0)
+        agg['total_spent'] += (it.total_price or 0.0)
+    for agg in aggregates.values():
+        qty = agg['total_qty']
+        agg['unit_price'] = (agg['total_spent'] / qty) if qty else 0.0
+
+    # Sort by name then UPC for stable table
+    aggregated_list = sorted(aggregates.values(), key=lambda a: (a.get('name') or '', a.get('upc') or ''))
+    return render_template('expenses_inventory_tracking.html', form=form, items=aggregated_list)
 
  
 
@@ -1676,6 +1821,7 @@ if __name__ == '__main__':
     # prefer explicit port 50010 to avoid macOS services binding to 5000
     import sys
     port = 50010
+    host = '127.0.0.1'
     # allow overriding via command-line --port or FLASK_RUN_PORT env
     for i, a in enumerate(sys.argv):
         if a == '--port' and i+1 < len(sys.argv):
@@ -1683,8 +1829,14 @@ if __name__ == '__main__':
                 port = int(sys.argv[i+1])
             except Exception:
                 pass
+        if a == '--host' and i+1 < len(sys.argv):
+            try:
+                host = str(sys.argv[i+1])
+            except Exception:
+                pass
     port = int(os.environ.get('FLASK_RUN_PORT', port))
+    host = os.environ.get('FLASK_RUN_HOST', host)
     # When running as a background/daemon (nohup), the Werkzeug reloader
     # may attempt to access stdin and fail with termios.error. Disable the
     # reloader to make background launches stable while keeping debug=True.
-    app.run(debug=True, port=port, use_reloader=False)
+    app.run(debug=True, host=host, port=port, use_reloader=False)

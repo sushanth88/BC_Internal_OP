@@ -1,31 +1,35 @@
-<div class="topbar">
-  <div>
-    <nav class="nav">
+<aside id="sidebar" class="sidebar" role="navigation" aria-label="Primary">
+  <div class="sidebar-inner">
+  <div class="sidebar-brand" title="Biryani City Portal">
+      <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Biryani City Portal" class="sidebar-logo" />
+      <h1 class="sidebar-title">Biryani City Portal</h1>
+    </div>
+    <nav class="nav-vertical" role="menubar">
   {% if current_user.is_authenticated and current_user.is_admin %}
-    <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}">Dashboard</a>
+  <a href="{{ url_for('index') }}" class="{% if request.path == url_for('index') %}active{% endif %}" aria-label="Dashboard"><span class="nav-icon">🏠</span><span class="nav-text">Dashboard</span></a>
   {% endif %}
       <div class="has-submenu nav-item">
-        <a href="{{ url_for('sales_transactions') }}"
-           class="{% if request.path.startswith('/sales') %}active{% endif %} parent"
-           aria-haspopup="true" aria-expanded="false">Sales ▾</a>
+      <a href="{{ url_for('sales_transactions') }}"
+        class="{% if request.path.startswith('/sales') %}active{% endif %} parent"
+        aria-haspopup="true" aria-expanded="false" aria-label="Sales"><span class="nav-icon">🛒</span><span class="nav-text">Sales ▾</span></a>
         <div class="submenu" role="menu" aria-label="Sales subpages">
-          <a href="{{ url_for('sales_transactions') }}" role="menuitem" class="{% if request.path == url_for('sales_transactions') %}active{% endif %}">Transactions</a>
+          <a href="{{ url_for('sales_transactions') }}" role="menuitem" class="{% if request.path == url_for('sales_transactions') %}active{% endif %}" aria-label="Transactions"><span class="nav-icon">📄</span><span class="nav-text">Transactions</span></a>
           {% if current_user.is_authenticated and current_user.is_admin %}
-            <a href="{{ url_for('catering') }}" role="menuitem" class="{% if request.path == url_for('catering') %}active{% endif %}">Catering</a>
+            <a href="{{ url_for('catering') }}" role="menuitem" class="{% if request.path == url_for('catering') %}active{% endif %}" aria-label="Catering"><span class="nav-icon">🍲</span><span class="nav-text">Catering</span></a>
           {% endif %}
         </div>
-  </div>
+      </div>
   
   {% if current_user.is_authenticated and current_user.is_admin %}
         <div class="has-submenu nav-item">
-          <a href="{{ url_for('expenses') }}"
-             class="{% if request.path.startswith('/expenses') %}active{% endif %} parent"
-             aria-haspopup="true" aria-expanded="false">Expenses ▾</a>
+       <a href="{{ url_for('expenses') }}"
+         class="{% if request.path.startswith('/expenses') %}active{% endif %} parent"
+         aria-haspopup="true" aria-expanded="false" aria-label="Expenses"><span class="nav-icon">💸</span><span class="nav-text">Expenses ▾</span></a>
           <div class="submenu" role="menu" aria-label="Expenses subpages">
-            <a href="{{ url_for('expenses_salaries') }}" role="menuitem" class="{% if request.path == url_for('expenses_salaries') %}active{% endif %}">Salaries</a>
-            <a href="{{ url_for('expenses_restaurant') }}" role="menuitem" class="{% if request.path == url_for('expenses_restaurant') %}active{% endif %}">Restaurant</a>
-            <a href="{{ url_for('expenses_inventory_tracking') }}" role="menuitem" class="{% if request.path == url_for('expenses_inventory_tracking') %}active{% endif %}">Inventory Tracking</a>
-            <a href="{{ url_for('expenses_guest_house') }}" role="menuitem" class="{% if request.path == url_for('expenses_guest_house') %}active{% endif %}">Guest House</a>
+            <a href="{{ url_for('expenses_salaries') }}" role="menuitem" class="{% if request.path == url_for('expenses_salaries') %}active{% endif %}" aria-label="Salaries"><span class="nav-icon">🧾</span><span class="nav-text">Salaries</span></a>
+            <a href="{{ url_for('expenses_restaurant') }}" role="menuitem" class="{% if request.path == url_for('expenses_restaurant') %}active{% endif %}" aria-label="Restaurant"><span class="nav-icon">🍽️</span><span class="nav-text">Restaurant</span></a>
+            <a href="{{ url_for('expenses_inventory_tracking') }}" role="menuitem" class="{% if request.path == url_for('expenses_inventory_tracking') %}active{% endif %}" aria-label="Inventory Tracking"><span class="nav-icon">📦</span><span class="nav-text">Inventory Tracking</span></a>
+            <a href="{{ url_for('expenses_guest_house') }}" role="menuitem" class="{% if request.path == url_for('expenses_guest_house') %}active{% endif %}" aria-label="Guest House"><span class="nav-icon">🏨</span><span class="nav-text">Guest House</span></a>
           </div>
         </div>
       {% endif %}
@@ -33,33 +37,37 @@
         {# Catering moved into Sales submenu above #}
         {% if current_user.is_admin %}
           <div class="has-submenu nav-item">
-            <a href="#"
-               class="{% if request.path.startswith('/admin') %}active{% endif %} parent"
-               aria-haspopup="true" aria-expanded="false">Administration ▾</a>
+        <a href="#"
+          class="{% if request.path.startswith('/admin') %}active{% endif %} parent"
+          aria-haspopup="true" aria-expanded="false" aria-label="Administration"><span class="nav-icon">⚙️</span><span class="nav-text">Administration ▾</span></a>
             <div class="submenu" role="menu" aria-label="Administration subpages">
-                <a href="{{ url_for('audit_logs') }}" role="menuitem" class="{% if request.path == url_for('audit_logs') %}active{% endif %}">Audit Logs</a>
+                <a href="{{ url_for('audit_logs') }}" role="menuitem" class="{% if request.path == url_for('audit_logs') %}active{% endif %}" aria-label="Audit Logs"><span class="nav-icon">🛡️</span><span class="nav-text">Audit Logs</span></a>
               </div>
           </div>
         {% endif %}
       {% endif %}
     </nav>
-  </div>
-  <div>
-    {% if current_user.is_authenticated %}
-      <div class="user-pill">
-        <span class="user-name">{{ current_user.username }}</span>
-        <a href="{{ url_for('logout') }}" class="user-logout" title="Logout" aria-label="Logout">
-          <!-- Logout icon (arrow leaving a door) -->
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M10 17v-3H3v-4h7V7l5 5-5 5zm9-13H5a2 2 0 0 0-2 2v3h2V6h14v12H5v-3H3v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-          </svg>
-        </a>
+    <div class="sidebar-footer">
+      <div class="theme-toggle" role="group" aria-label="Theme">
+        <button type="button" class="theme-btn" data-mode="auto" aria-pressed="false" title="Auto (system)">🖥️</button>
+        <button type="button" class="theme-btn" data-mode="light" aria-pressed="false" title="Light">☀️</button>
+        <button type="button" class="theme-btn" data-mode="dark" aria-pressed="false" title="Dark">🌙</button>
       </div>
-    {% else %}
-      <a href="{{ url_for('login') }}">Login</a>
-    {% endif %}
+      {% if current_user.is_authenticated %}
+        <div class="user-pill">
+          <span class="user-name">{{ current_user.username }}</span>
+          <a href="{{ url_for('logout') }}" class="user-logout" title="Logout" aria-label="Logout">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M10 17v-3H3v-4h7V7l5 5-5 5zm9-13H5a2 2 0 0 0-2 2v3h2V6h14v12H5v-3H3v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+            </svg>
+          </a>
+        </div>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="login-link">Login</a>
+      {% endif %}
+    </div>
   </div>
-</div>
+</aside>
 
 {#
   Submenu pattern (for future sections):
@@ -73,5 +81,6 @@
   Notes:
   - Use class "right" on .submenu to right-align under parent when needed.
   - JS in layout.html handles click/touch toggle and keyboard (Enter/Space, Esc).
+  - Sidebar is toggled via a button with id #sidebarToggle.
   - Keep aria-expanded synced on the parent <a>.
 #}
